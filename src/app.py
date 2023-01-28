@@ -31,5 +31,4 @@ def trayActivated(activationReason: QSystemTrayIcon) -> None:
 
 
 tray.activated.connect(trayActivated)
-
 tray.setContextMenu(menu)
