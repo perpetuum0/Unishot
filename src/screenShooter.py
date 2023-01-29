@@ -1,3 +1,4 @@
+from typings import Screenshot
 from PySide6.QtWidgets import QWidget, QLabel
 from PySide6.QtCore import (Qt, QPoint, QSize, QEvent)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
@@ -5,7 +6,7 @@ from PySide6.QtGui import (QGuiApplication, QPixmap,
 from areaSelection import AreaSelection
 
 
-class Screenshot(QWidget):
+class ScreenShooter(QWidget):
     screenshot: QPixmap
     previewLabel: QLabel
     areaSelection: AreaSelection
@@ -30,44 +31,43 @@ class Screenshot(QWidget):
         self.activateWindow()
 
     def shoot(self) -> None:
-        screenshots = self.get_screenshots(QGuiApplication.screens())
+        screenshots = self.getScreenshots(QGuiApplication.screens())
 
-        self.screenshot = self.merge_screenshots(screenshots)
+        self.screenshot = self.mergeScreenshots(screenshots)
 
         self.areaSelection.start(self.screenshot)
-        self.update_preview(self.screenshot)
+        self.updatePreview(self.screenshot)
 
-    def get_screenshots(self, screens: list[QScreen]) -> list[tuple[QPixmap, QPoint]]:
-        # [(screen_pixmap, screen_position)]
-        screenshots = []
+    def getScreenshots(self, screens: list[QScreen]) -> list[Screenshot]:
+        screenshots = list[Screenshot]()
 
         for screen in screens:
             geom = screen.geometry()
             screenshots.append(
-                (screen.grabWindow(0), QPoint(geom.x(), geom.y()))
+                Screenshot(screen.grabWindow(0), QPoint(geom.x(), geom.y()))
             )
 
         return screenshots
 
-    def merge_screenshots(self, screenshots: list) -> QPixmap:
+    def mergeScreenshots(self, screenshots: list[Screenshot]) -> QPixmap:
         width, height = 0, 0
         for pixmap, pos in screenshots:
             width += pixmap.width()
             if height < pixmap.height():
                 height = pixmap.height()
 
-        merged_shot = QPixmap(QSize(width, height))
-        merged_shot.fill(QColor(0, 0, 0, 0))
+        mergedShot = QPixmap(QSize(width, height))
+        mergedShot.fill(QColor(0, 0, 0, 0))
 
-        painter = QPainter(merged_shot)
+        painter = QPainter(mergedShot)
         for pixmap, pos in screenshots:
             painter.drawPixmap(pos, pixmap)
         painter.end()
 
-        return merged_shot
+        return mergedShot
 
-    def update_preview(self, newPreview: QPixmap) -> None:
-        newPreview = newPreview.copy()  # Prevent modifying original preview
+    def updatePreview(self, newPreview: QPixmap) -> None:
+        newPreview = newPreview.copy()  # Prevent modifying base value
         w, h = newPreview.width(), newPreview.height()
 
         painter = QPainter(newPreview)
