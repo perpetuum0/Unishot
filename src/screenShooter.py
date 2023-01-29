@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QWidget, QLabel
 from PySide6.QtCore import (Qt, QPoint, QSize, QEvent)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen, QHideEvent)
-from area_selection import AreaSelection
+from areaSelection import AreaSelection
 
 
 class Screenshot(QWidget):

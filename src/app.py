@@ -2,7 +2,7 @@
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 
-from screenshot import Screenshot
+from screenShooter import Screenshot
 
 app = QApplication([])
 app.setQuitOnLastWindowClosed(False)
