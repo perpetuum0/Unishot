@@ -1,8 +1,9 @@
 from typings import Screenshot
-from PySide6.QtWidgets import QWidget, QLabel
+from PySide6.QtWidgets import QWidget, QLabel, QApplication
 from PySide6.QtCore import (Qt, QPoint, QSize, QEvent)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
-                           QPainter, QColor, QBrush, QScreen, QHideEvent)
+                           QPainter, QColor, QBrush, QScreen,
+                           QShortcut, QKeySequence)
 from areaSelection import AreaSelection
 
 
@@ -24,6 +25,10 @@ class ScreenShooter(QWidget):
 
         self.areaSelection = AreaSelection(self)
         self.areaSelection.show()
+
+        self.clipboardShortcut = QShortcut(QKeySequence("CTRL+C"), self)
+        self.clipboardShortcut.activated.connect(
+            self.copyScreenshotToClipboard)
 
     def activate(self):
         self.shoot()
@@ -79,15 +84,22 @@ class ScreenShooter(QWidget):
         self.previewLabel.setFixedSize(w, h)
         self.previewLabel.setPixmap(newPreview)
 
+    def copyScreenshotToClipboard(self):
+        QApplication.clipboard().setImage(
+            self.screenshot.copy(self.areaSelection.selection).toImage())
+        self.hide()
+
     def event(self, event: QEvent) -> bool:
         if event.type() == QEvent.WindowDeactivate:
             self.hide()
             event.accept()
-        event.ignore()
+        else:
+            event.ignore()
         return super().event(event)
 
     def keyPressEvent(self, event) -> None:
         if (event.key() == 16777216):
             self.hide()
             event.accept()
-        event.ignore()
+        else:
+            event.ignore()
