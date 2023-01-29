@@ -1,8 +1,7 @@
-
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 
-from screenShooter import ScreenShooter
+from screenshot import Screenshooter
 
 app = QApplication([])
 app.setQuitOnLastWindowClosed(False)
@@ -17,12 +16,12 @@ menu = QMenu()
 action = QAction("Options")
 menu.addAction(action)
 
-quit = QAction("Quit")
-quit.triggered.connect(app.quit)
-menu.addAction(quit)
+quit_ = QAction("Quit")
+quit_.triggered.connect(app.quit)
+menu.addAction(quit_)
 
 
-shooter = ScreenShooter()
+shooter = Screenshooter()
 
 
 def trayActivated(activationReason: QSystemTrayIcon) -> None:

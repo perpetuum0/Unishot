@@ -4,10 +4,10 @@ from PySide6.QtCore import (Qt, QPoint, QSize, QEvent)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen,
                            QShortcut, QKeySequence)
-from areaSelection import AreaSelection
+from area_selection import AreaSelection
 
 
-class ScreenShooter(QWidget):
+class Screenshooter(QWidget):
     screenshot: QPixmap
     previewLabel: QLabel
     areaSelection: AreaSelection
