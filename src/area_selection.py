@@ -113,7 +113,7 @@ class AreaSelection(QWidget):
 
     def showToolkit(self):
         # TODO: adjust to screen corners
-        self.toolkit.move(self.selection.x(), self.selection.y()-35)
+        self.toolkit.move(self.selection.x()-1, self.selection.y()-35)
         self.toolkit.show()
 
     def hideToolkit(self):
