@@ -1,10 +1,13 @@
 from PySide6.QtWidgets import QWidget, QLabel, QToolTip
 from PySide6.QtGui import QPixmap, QMouseEvent
-from PySide6.QtCore import QRect, QPoint, QPointF
-from toolkit import Toolkit
+from PySide6.QtCore import QRect, QPoint, QPointF, Signal
 
 
 class AreaPreviewLabel(QLabel):
+    moveStart = Signal(bool)
+    moved = Signal(QPoint)
+    moveEnd = Signal(bool)
+
     screenshot: QPixmap
     borderWidth: int
     dragPoint: QPointF
@@ -39,25 +42,26 @@ class AreaPreviewLabel(QLabel):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.dragPoint = event.localPos()
-        self.parent.hideToolkit()
+        self.moveStart.emit(True)
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        self.parent.moveSelectionArea(
-            QPoint(
-                event.globalPos().x()-self.dragPoint.x(),
-                event.globalPos().y()-self.dragPoint.y()
-            )
-        )
+        self.moved.emit(QPoint(
+            event.globalPos().x()-self.dragPoint.x(),
+            event.globalPos().y()-self.dragPoint.y()
+        ))
+
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        self.parent.showToolkit()
+        self.moveEnd.emit(True)
         event.accept()
 
 
 class AreaSelection(QWidget):
-    screenshot: QPixmap
+    transformStart = Signal(bool)
+    transformEnd = Signal(QRect)
+
     areaPreview: AreaPreviewLabel
     selection: QRect
     borderWidth: int = 2
@@ -70,22 +74,21 @@ class AreaSelection(QWidget):
         self.areaPreview = AreaPreviewLabel(self, 2)
         self.areaPreview.show()
 
-        self.toolkit = Toolkit(self)
+        self.areaPreview.moveStart.connect(self.startTransorm)
+        self.areaPreview.moved.connect(self.moveSelection)
+        self.areaPreview.moveEnd.connect(self.endTransform)
 
         self.show()
 
     def start(self, newShot: QPixmap) -> None:
-        self.screenshot = newShot
         self.setFixedSize(newShot.size())
 
         self.selection = QRect(0, 0, 0, 0)
-        self.hideToolkit()
-
         self.areaPreview.start(newShot)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        self.moveSelectionArea(event.pos())
-        self.hideToolkit()
+        self.startTransorm()
+        self.moveSelection(event.pos())
         QToolTip.showText(event.pos(),
                           f"{abs(self.selection.width())}x{abs(self.selection.height())}"
                           )
@@ -100,21 +103,18 @@ class AreaSelection(QWidget):
         QToolTip.showText(event.pos(),
                           f"{abs(self.selection.width())}x{abs(self.selection.height())}"
                           )
-        # self.toolTip
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        self.showToolkit()
+        self.endTransform()
         event.accept()
 
-    def moveSelectionArea(self, moveTo: QPoint):
+    def moveSelection(self, moveTo: QPoint):
         self.selection.moveTo(moveTo)
         self.areaPreview.setArea(self.selection)
 
-    def showToolkit(self):
-        # TODO: adjust to screen corners
-        self.toolkit.move(self.selection.x()-1, self.selection.y()-35)
-        self.toolkit.show()
+    def startTransorm(self):
+        self.transformStart.emit(True)
 
-    def hideToolkit(self):
-        self.toolkit.hide()
+    def endTransform(self):
+        self.transformEnd.emit(self.selection)

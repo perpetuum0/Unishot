@@ -1,15 +1,17 @@
 from typings import Screenshot
-from PySide6.QtWidgets import QWidget, QLabel, QApplication
-from PySide6.QtCore import (Qt, QPoint, QSize, QEvent)
+from PySide6.QtWidgets import QWidget, QLabel, QApplication, QFileDialog
+from PySide6.QtCore import (Qt, QPoint, QSize, QEvent, QRect)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen,
                            QShortcut, QKeySequence)
 from area_selection import AreaSelection
+from toolkit import Toolkit
 
 
 class Screenshooter(QWidget):
     screenshot: QPixmap
     previewLabel: QLabel
+    selection: QRect
     areaSelection: AreaSelection
 
     def __init__(self) -> None:
@@ -25,6 +27,14 @@ class Screenshooter(QWidget):
 
         self.areaSelection = AreaSelection(self)
         self.areaSelection.show()
+        self.areaSelection.transformStart.connect(self.hideToolkit)
+        self.areaSelection.transformEnd.connect(
+            lambda sel: [self.setSelection(sel), self.showToolkit()]
+        )
+
+        self.toolkit = Toolkit(self.areaSelection)
+        # TODO: CTRL+S shortcut for saving
+        self.toolkit.saveTo.connect(self.saveScreenshot)
 
         self.clipboardShortcut = QShortcut(QKeySequence("CTRL+C"), self)
         self.clipboardShortcut.activated.connect(
@@ -84,10 +94,28 @@ class Screenshooter(QWidget):
         self.previewLabel.setFixedSize(w, h)
         self.previewLabel.setPixmap(newPreview)
 
+    def saveScreenshot(self):
+        # TODO: file dialog on desktop by default
+        fileName = QFileDialog.getSaveFileName(
+            self, 'Save Screenshot', filter="Images (*.png *.jpg *.jpeg);;All files (*)")
+        self.screenshot.copy(self.selection).save(fileName[0])
+
     def copyScreenshotToClipboard(self):
         QApplication.clipboard().setImage(
-            self.screenshot.copy(self.areaSelection.selection).toImage())
+            self.screenshot.copy(self.selection).toImage())
         self.hide()
+
+    def setSelection(self, newSelection: QRect):
+        self.selection = newSelection
+
+    def showToolkit(self):
+        # TODO: adjust to screen corners
+        pos = self.selection
+        self.toolkit.move(pos.x()-1, pos.y()-35)
+        self.toolkit.show()
+
+    def hideToolkit(self):
+        self.toolkit.hide()
 
     def event(self, event: QEvent) -> bool:
         if event.type() == QEvent.WindowDeactivate:

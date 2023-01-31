@@ -1,9 +1,11 @@
 from PySide6.QtWidgets import QWidget, QLabel, QGraphicsBlurEffect, QAbstractButton
 from PySide6.QtGui import QPixmap, QColor, QPainter
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize, Signal
 
 
 class Toolkit(QWidget):
+    saveTo = Signal(bool)
+
     def __init__(self, parent: QWidget) -> None:
         ###
         # For debug purposes:
@@ -18,7 +20,7 @@ class Toolkit(QWidget):
 
         self.saveButton = ToolkitButton(self, QPixmap(
             "../images/saveIcon.png"), QSize(self.height(), self.height()))
-        # self.saveButton.clicked.connect() #TODO
+        self.saveButton.clicked.connect(lambda ev: self.saveTo.emit(True))
 
 
 class ToolkitButton(QAbstractButton):
