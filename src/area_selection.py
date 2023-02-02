@@ -2,8 +2,10 @@ from PySide6.QtWidgets import QWidget, QLabel, QToolTip
 from PySide6.QtGui import QPixmap, QMouseEvent
 from PySide6.QtCore import QRect, QPoint, QPointF, Signal
 
+from typings import ResizePointAlignment
 
-class AreaPreviewLabel(QLabel):
+
+class SelectionPreview(QLabel):
     moveStart = Signal(bool)
     moved = Signal(QPoint)
     moveEnd = Signal(bool)
@@ -16,17 +18,18 @@ class AreaPreviewLabel(QLabel):
         super().__init__(parent)
         self.parent = parent
         self.borderWidth = borderWidth
+
         self.move(0, 0)
 
         self.setStyleSheet(
-            f"border: {borderWidth}px dotted white")
+            f"border: {borderWidth}px dashed white")
 
     def start(self, screenshot) -> None:
         self.screenshot = screenshot
-        self.setArea(QRect(0, 0, 0, 0))
+        self.setSelection(QRect(0, 0, 0, 0))
 
-    def setArea(self, newArea: QRect) -> None:
-        areaNormalized = newArea.normalized()
+    def setSelection(self, newSelection: QRect) -> None:
+        areaNormalized = newSelection.normalized()
 
         self.setGeometry(areaNormalized)
 
@@ -42,6 +45,7 @@ class AreaPreviewLabel(QLabel):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.dragPoint = event.localPos()
+        # TODO: mouse move cursor
         self.moveStart.emit(True)
         event.accept()
 
@@ -58,11 +62,90 @@ class AreaPreviewLabel(QLabel):
         event.accept()
 
 
+class SelectionResizePoint(QLabel):
+    drag = Signal(tuple)
+    alignment: ResizePointAlignment
+    borderWidth: int
+
+    def __init__(self, parent: QWidget, alignWith: QWidget, alignment: ResizePointAlignment):
+        super().__init__(parent)
+        self.alignment = alignment
+        self.alignObj = alignWith
+        self.offset = 3
+
+        self.setFixedSize(8, 8)
+        self.setStyleSheet("background-color: white")
+        self.show()
+
+    def align(self) -> None:
+        frame = self.alignObj.geometry()
+        center = frame.center()
+
+        geom = self.geometry()
+        match self.alignment:
+            case ResizePointAlignment.TopLeft:
+                p = frame.topLeft()
+                geom.moveCenter(
+                    QPoint(p.x()-self.offset, p.y()-self.offset)
+                )
+
+            case ResizePointAlignment.Top:
+                p = frame.topLeft()
+                geom.moveCenter(
+                    QPoint(center.x(), p.y()-self.offset)
+                )
+
+            case ResizePointAlignment.TopRight:
+                p = frame.topRight()
+                geom.moveCenter(
+                    QPoint(p.x()+self.offset, p.y()-self.offset)
+                )
+
+            case ResizePointAlignment.CenterLeft:
+                p = frame.topLeft()
+                geom.moveCenter(
+                    QPoint(p.x()-self.offset, center.y())
+                )
+
+            case ResizePointAlignment.CenterRight:
+                p = frame.topRight()
+                geom.moveCenter(
+                    QPoint(p.x()+self.offset, center.y())
+                )
+
+            case ResizePointAlignment.BottomLeft:
+                p = frame.bottomLeft()
+                geom.moveCenter(
+                    QPoint(p.x()-self.offset, p.y()+self.offset)
+                )
+
+            case ResizePointAlignment.Bottom:
+                p = frame.bottomLeft()
+                geom.moveCenter(
+                    QPoint(center.x(), p.y()+self.offset)
+                )
+
+            case ResizePointAlignment.BottomRight:
+                p = frame.bottomRight()
+                geom.moveCenter(
+                    QPoint(p.x()+self.offset, p.y()+self.offset)
+                )
+        self.setGeometry(geom)
+
+    def mousePressEvent(self, event) -> None:
+        event.accept()
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        self.drag.emit((self.alignment, event.globalPos()))
+        event.accept()
+
+
 class AreaSelection(QWidget):
     transformStart = Signal(bool)
     transformEnd = Signal(QRect)
 
-    areaPreview: AreaPreviewLabel
+    resizePoints: list[SelectionResizePoint]
+    selectionPreview: SelectionPreview
     selection: QRect
     borderWidth: int = 2
 
@@ -70,24 +153,35 @@ class AreaSelection(QWidget):
         super().__init__(parent)
         self.setParent(parent)
         self.move(0, 0)
+        self.borderWidth = 2
 
-        self.areaPreview = AreaPreviewLabel(self, 2)
-        self.areaPreview.show()
+        self.selection = QRect(0, 0, 0, 0)
 
-        self.areaPreview.moveStart.connect(self.startTransorm)
-        self.areaPreview.moved.connect(self.moveSelection)
-        self.areaPreview.moveEnd.connect(self.endTransform)
+        self.selectionPreview = SelectionPreview(self, self.borderWidth)
+        self.selectionPreview.show()
+
+        self.selectionPreview.moveStart.connect(self.startTransorm)
+        self.selectionPreview.moved.connect(self.moveSelection)
+        self.selectionPreview.moveEnd.connect(self.endTransform)
+
+        self.resizePoints = []
+        for alignment in ResizePointAlignment:
+            point = SelectionResizePoint(
+                self, self.selectionPreview, alignment)
+            point.drag.connect(
+                lambda tup: self.resizeSelection(tup[0], tup[1]))
+            point.show()
+            self.resizePoints.append(point)
 
         self.show()
 
     def start(self, newShot: QPixmap) -> None:
         self.setFixedSize(newShot.size())
-
-        self.selection = QRect(0, 0, 0, 0)
-        self.areaPreview.start(newShot)
+        self.selectionPreview.start(newShot)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.startTransorm()
+        self.setSelection(0, 0, 0, 0)
         self.moveSelection(event.pos())
         QToolTip.showText(event.pos(),
                           f"{abs(self.selection.width())}x{abs(self.selection.height())}"
@@ -95,11 +189,11 @@ class AreaSelection(QWidget):
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        self.selection.setCoords(
+        self.setSelection(
             self.selection.x(), self.selection.y(),
             event.x(), event.y()
         )
-        self.areaPreview.setArea(self.selection)
+
         QToolTip.showText(event.pos(),
                           f"{abs(self.selection.width())}x{abs(self.selection.height())}"
                           )
@@ -109,9 +203,47 @@ class AreaSelection(QWidget):
         self.endTransform()
         event.accept()
 
+    def setSelection(self, x1: int, y1: int, x2: int, y2: int):
+        self.selection.setCoords(x1, y1, x2, y2)
+        self.selectionPreview.setSelection(self.selection)
+        self.alignResizePoints()
+
     def moveSelection(self, moveTo: QPoint):
         self.selection.moveTo(moveTo)
-        self.areaPreview.setArea(self.selection)
+        self.selectionPreview.setSelection(self.selection)
+        self.alignResizePoints()
+
+    def resizeSelection(self, alignment: ResizePointAlignment, point: QPoint):
+        match alignment:
+            case ResizePointAlignment.TopLeft:
+                self.selection.setTopLeft(point)
+
+            case ResizePointAlignment.Top:
+                self.selection.setTop(point.y())
+
+            case ResizePointAlignment.TopRight:
+                self.selection.setTopRight(point)
+
+            case ResizePointAlignment.CenterLeft:
+                self.selection.setLeft(point.x())
+
+            case ResizePointAlignment.CenterRight:
+                self.selection.setRight(point.x())
+
+            case ResizePointAlignment.BottomLeft:
+                self.selection.setBottomLeft(point)
+
+            case ResizePointAlignment.Bottom:
+                self.selection.setBottom(point.y())
+
+            case ResizePointAlignment.BottomRight:
+                self.selection.setBottomRight(point)
+        self.selectionPreview.setSelection(self.selection)
+        self.alignResizePoints()
+
+    def alignResizePoints(self):
+        for point in self.resizePoints:
+            point.align()
 
     def startTransorm(self):
         self.transformStart.emit(True)
