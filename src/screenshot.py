@@ -1,6 +1,6 @@
 from typings import Screenshot
 from PySide6.QtWidgets import QWidget, QLabel, QApplication, QFileDialog
-from PySide6.QtCore import (Qt, QPoint, QSize, QEvent, QRect)
+from PySide6.QtCore import (Qt, QPoint, QSize, QEvent, QRect, QStandardPaths)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen,
                            QShortcut, QKeySequence)
@@ -9,9 +9,12 @@ from toolkit import Toolkit
 
 
 class Screenshooter(QWidget):
-    screenshot: QPixmap
-    previewLabel: QLabel
+    ignoreFocus: bool
+
     selection: QRect
+    screenshot: QPixmap
+
+    previewLabel: QLabel
     areaSelection: AreaSelection
 
     def __init__(self) -> None:
@@ -33,14 +36,16 @@ class Screenshooter(QWidget):
         )
 
         self.toolkit = Toolkit(self.areaSelection)
-        # TODO: CTRL+S shortcut for saving
         self.toolkit.saveTo.connect(self.saveScreenshot)
 
+        self.saveShortcut = QShortcut(QKeySequence("CTRL+S"), self)
+        self.saveShortcut.activated.connect(self.saveScreenshot)
         self.clipboardShortcut = QShortcut(QKeySequence("CTRL+C"), self)
         self.clipboardShortcut.activated.connect(
             self.copyScreenshotToClipboard)
 
     def activate(self):
+        self.ignoreFocus = False
         self.shoot()
         self.show()
         self.activateWindow()
@@ -96,10 +101,19 @@ class Screenshooter(QWidget):
         self.previewLabel.setPixmap(newPreview)
 
     def saveScreenshot(self):
-        # TODO: file dialog on desktop by default
+        self.ignoreFocus = True
         fileName = QFileDialog.getSaveFileName(
-            self, 'Save Screenshot', filter="Images (*.png *.jpg *.jpeg);;All files (*)")
-        self.screenshot.copy(self.selection).save(fileName[0])
+            self,
+            caption='Save Screenshot',
+            dir=QStandardPaths.writableLocation(
+                QStandardPaths.StandardLocation.DesktopLocation
+            ),
+            filter="Images (*.png *.jpg *.jpeg);;All files (*)"
+        )
+        self.ignoreFocus = False
+        if fileName != ('', ''):
+            self.hide()
+            self.screenshot.copy(self.selection).save(fileName[0])
 
     def copyScreenshotToClipboard(self):
         QApplication.clipboard().setImage(
@@ -119,7 +133,7 @@ class Screenshooter(QWidget):
         self.toolkit.hide()
 
     def event(self, event: QEvent) -> bool:
-        if event.type() == QEvent.WindowDeactivate:
+        if event.type() == QEvent.WindowDeactivate and not self.ignoreFocus:
             self.hide()
             event.accept()
         else:
