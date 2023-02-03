@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QLabel, QToolTip
-from PySide6.QtGui import QPixmap, QMouseEvent
+from PySide6.QtGui import QPixmap, QMouseEvent, Qt, QCursor
 from PySide6.QtCore import QRect, QPoint, QPointF, Signal
 
 from typings import ResizePointAlignment
@@ -19,10 +19,9 @@ class SelectionPreview(QLabel):
         self.parent = parent
         self.borderWidth = borderWidth
 
-        self.move(0, 0)
-
         self.setStyleSheet(
             f"border: {borderWidth}px dashed white")
+        self.setCursor(QCursor(Qt.CursorShape.SizeAllCursor))
 
     def start(self, screenshot) -> None:
         self.screenshot = screenshot
@@ -45,7 +44,6 @@ class SelectionPreview(QLabel):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.dragPoint = event.localPos()
-        # TODO: mouse move cursor
         self.moveStart.emit(True)
         event.accept()
 
@@ -76,6 +74,19 @@ class SelectionResizePoint(QLabel):
         self.setFixedSize(8, 8)
         self.setStyleSheet("background-color: white")
         self.show()
+
+        match alignment:
+            case ResizePointAlignment.TopLeft | ResizePointAlignment.BottomRight:
+                self.setCursor(Qt.CursorShape.SizeFDiagCursor)
+
+            case ResizePointAlignment.Top | ResizePointAlignment.Bottom:
+                self.setCursor(Qt.CursorShape.SizeVerCursor)
+
+            case ResizePointAlignment.BottomLeft | ResizePointAlignment.TopRight:
+                self.setCursor(Qt.CursorShape.SizeBDiagCursor)
+
+            case ResizePointAlignment.CenterLeft | ResizePointAlignment.CenterRight:
+                self.setCursor(Qt.CursorShape.SizeHorCursor)
 
     def align(self) -> None:
         frame = self.alignObj.geometry()
@@ -151,11 +162,10 @@ class AreaSelection(QWidget):
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
-        self.setParent(parent)
-        self.move(0, 0)
+        self.selection = QRect(0, 0, 0, 0)
         self.borderWidth = 2
 
-        self.selection = QRect(0, 0, 0, 0)
+        self.setCursor(Qt.CursorShape.CrossCursor)
 
         self.selectionPreview = SelectionPreview(self, self.borderWidth)
         self.selectionPreview.show()
@@ -177,6 +187,7 @@ class AreaSelection(QWidget):
 
     def start(self, newShot: QPixmap) -> None:
         self.setFixedSize(newShot.size())
+        self.hideResizePoints()
         self.selectionPreview.start(newShot)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
@@ -203,17 +214,15 @@ class AreaSelection(QWidget):
         self.endTransform()
         event.accept()
 
-    def setSelection(self, x1: int, y1: int, x2: int, y2: int):
+    def setSelection(self, x1: int, y1: int, x2: int, y2: int) -> None:
         self.selection.setCoords(x1, y1, x2, y2)
-        self.selectionPreview.setSelection(self.selection)
-        self.alignResizePoints()
+        self.selectionChanged()
 
-    def moveSelection(self, moveTo: QPoint):
+    def moveSelection(self, moveTo: QPoint) -> None:
         self.selection.moveTo(moveTo)
-        self.selectionPreview.setSelection(self.selection)
-        self.alignResizePoints()
+        self.selectionChanged()
 
-    def resizeSelection(self, alignment: ResizePointAlignment, point: QPoint):
+    def resizeSelection(self, alignment: ResizePointAlignment, point: QPoint) -> None:
         match alignment:
             case ResizePointAlignment.TopLeft:
                 self.selection.setTopLeft(point)
@@ -238,15 +247,29 @@ class AreaSelection(QWidget):
 
             case ResizePointAlignment.BottomRight:
                 self.selection.setBottomRight(point)
+        self.selectionChanged()
+
+    def selectionChanged(self) -> None:
+        # Call this method after any change of self.selection
         self.selectionPreview.setSelection(self.selection)
         self.alignResizePoints()
+        self.showResizePoints()
 
-    def alignResizePoints(self):
+    def alignResizePoints(self) -> None:
         for point in self.resizePoints:
+            point.show()
             point.align()
 
-    def startTransorm(self):
+    def showResizePoints(self) -> None:
+        for point in self.resizePoints:
+            point.show()
+
+    def hideResizePoints(self) -> None:
+        for point in self.resizePoints:
+            point.hide()
+
+    def startTransorm(self) -> None:
         self.transformStart.emit(True)
 
-    def endTransform(self):
+    def endTransform(self) -> None:
         self.transformEnd.emit(self.selection)

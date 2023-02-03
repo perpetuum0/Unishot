@@ -50,8 +50,9 @@ class Screenshooter(QWidget):
 
         self.screenshot = self.mergeScreenshots(screenshots)
 
-        self.areaSelection.start(self.screenshot)
+        self.hideToolkit()
         self.updatePreview(self.screenshot)
+        self.areaSelection.start(self.screenshot)
 
     def getScreenshots(self, screens: list[QScreen]) -> list[Screenshot]:
         screenshots = list[Screenshot]()
