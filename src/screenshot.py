@@ -1,6 +1,7 @@
 from typings import Screenshot
 from PySide6.QtWidgets import QWidget, QLabel, QApplication, QFileDialog
-from PySide6.QtCore import (Qt, QPoint, QSize, QEvent, QRect, QStandardPaths)
+from PySide6.QtCore import (
+    Qt, QPoint, QSize, QEvent, QRect, QStandardPaths)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen,
                            QShortcut, QKeySequence)
@@ -27,6 +28,7 @@ class Screenshooter(QWidget):
         self.move(0, 0)
 
         self.previewLabel = QLabel(self)
+        # self.previewLabel.geom
         self.previewLabel.show()
 
         self.areaSelection = AreaSelection(self)
@@ -53,8 +55,9 @@ class Screenshooter(QWidget):
         self.activateWindow()
 
     def shoot(self) -> None:
-        screenshots = self.getScreenshots(QGuiApplication.screens())
+        self.screens = QGuiApplication.screens()
 
+        screenshots = self.getScreenshots(self.screens)
         self.screenshot = self.mergeScreenshots(screenshots)
 
         self.hideToolkit()
@@ -66,6 +69,7 @@ class Screenshooter(QWidget):
 
         for screen in screens:
             geom = screen.geometry()
+
             screenshots.append(
                 Screenshot(screen.grabWindow(0), QPoint(geom.x(), geom.y()))
             )
@@ -140,6 +144,12 @@ class Screenshooter(QWidget):
 
     def hideToolkit(self):
         self.toolkit.hide()
+
+    def isPointOnScreen(self, point: QPoint) -> bool:
+        for scr in self.screens:
+            if scr.geometry().contains(point):
+                return True
+        return False
 
     def event(self, event: QEvent) -> bool:
         if event.type() == QEvent.WindowDeactivate and not self.ignoreFocus:

@@ -6,9 +6,9 @@ from typings import ResizePointAlignment
 
 
 class SelectionPreview(QLabel):
-    moveStart = Signal(bool)
+    moveStart = Signal()
     moved = Signal(QPoint)
-    moveEnd = Signal(bool)
+    moveEnd = Signal()
 
     screenshot: QPixmap
     borderWidth: int
@@ -44,7 +44,7 @@ class SelectionPreview(QLabel):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.dragPoint = event.localPos()
-        self.moveStart.emit(True)
+        self.moveStart.emit()
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
@@ -56,12 +56,14 @@ class SelectionPreview(QLabel):
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        self.moveEnd.emit(True)
+        self.moveEnd.emit()
         event.accept()
 
 
 class SelectionResizePoint(QLabel):
+    dragStart = Signal()
     drag = Signal(tuple)
+    dragEnd = Signal()
     alignment: ResizePointAlignment
     borderWidth: int
 
@@ -144,15 +146,20 @@ class SelectionResizePoint(QLabel):
         self.setGeometry(geom)
 
     def mousePressEvent(self, event) -> None:
+        self.dragStart.emit()
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         self.drag.emit((self.alignment, event.globalPos()))
         event.accept()
 
+    def mouseReleaseEvent(self, event) -> None:
+        self.dragEnd.emit()
+        event.accept()
+
 
 class AreaSelection(QWidget):
-    transformStart = Signal(bool)
+    transformStart = Signal()
     transformEnd = Signal(QRect)
 
     resizePoints: list[SelectionResizePoint]
@@ -178,12 +185,13 @@ class AreaSelection(QWidget):
         for alignment in ResizePointAlignment:
             point = SelectionResizePoint(
                 self, self.selectionPreview, alignment)
-            point.drag.connect(
-                lambda tup: self.resizeSelection(tup[0], tup[1]))
-            point.show()
             self.resizePoints.append(point)
 
-        self.show()
+            point.dragStart.connect(self.startTransorm)
+            point.dragEnd.connect(self.endTransform)
+            point.drag.connect(
+                lambda tup: self.resizeSelection(tup[0], tup[1])
+            )
 
     def start(self, newShot: QPixmap) -> None:
         self.setFixedSize(newShot.size())
@@ -194,9 +202,6 @@ class AreaSelection(QWidget):
         self.startTransorm()
         self.setSelection(0, 0, 0, 0)
         self.moveSelection(event.pos())
-        QToolTip.showText(event.pos(),
-                          f"{abs(self.selection.width())}x{abs(self.selection.height())}"
-                          )
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
@@ -204,10 +209,6 @@ class AreaSelection(QWidget):
             self.selection.x(), self.selection.y(),
             event.x(), event.y()
         )
-
-        QToolTip.showText(event.pos(),
-                          f"{abs(self.selection.width())}x{abs(self.selection.height())}"
-                          )
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -251,6 +252,11 @@ class AreaSelection(QWidget):
 
     def selectionChanged(self) -> None:
         # Call this method after any change of self.selection
+        QToolTip.showText(
+            QCursor.pos(),
+            # TODO abs
+            f"{abs(self.selection.width())}x{abs(self.selection.height())}"
+        )
         self.selectionPreview.setSelection(self.selection)
         self.alignResizePoints()
         self.showResizePoints()
@@ -269,7 +275,7 @@ class AreaSelection(QWidget):
             point.hide()
 
     def startTransorm(self) -> None:
-        self.transformStart.emit(True)
+        self.transformStart.emit()
 
     def endTransform(self) -> None:
         self.transformEnd.emit(self.selection)
