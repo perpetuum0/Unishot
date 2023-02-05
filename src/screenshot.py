@@ -6,6 +6,7 @@ from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QShortcut, QKeySequence)
 from area_selection import AreaSelection
 from toolkit import Toolkit
+from typings import ToolkitButtons
 
 
 class Screenshooter(QWidget):
@@ -35,14 +36,15 @@ class Screenshooter(QWidget):
             lambda sel: [self.setSelection(sel), self.showToolkit()]
         )
 
-        self.toolkit = Toolkit(self.areaSelection)
-        self.toolkit.saveTo.connect(self.saveScreenshot)
+        self.toolkit = Toolkit(
+            self.areaSelection)
+        self.toolkit.action.connect(self.toolkitAction)
 
-        self.saveShortcut = QShortcut(QKeySequence("CTRL+S"), self)
+        self.saveShortcut = QShortcut(QKeySequence.StandardKey.Save, self)
         self.saveShortcut.activated.connect(self.saveScreenshot)
-        self.clipboardShortcut = QShortcut(QKeySequence("CTRL+C"), self)
+        self.clipboardShortcut = QShortcut(QKeySequence.StandardKey.Copy, self)
         self.clipboardShortcut.activated.connect(
-            self.copyScreenshotToClipboard)
+            self.copyScreenshot)
 
     def activate(self):
         self.ignoreFocus = False
@@ -100,6 +102,13 @@ class Screenshooter(QWidget):
         self.previewLabel.setFixedSize(w, h)
         self.previewLabel.setPixmap(newPreview)
 
+    def toolkitAction(self, button: ToolkitButtons):
+        match button:
+            case ToolkitButtons.Save:
+                self.saveScreenshot()
+            case ToolkitButtons.Copy:
+                self.copyScreenshot()
+
     def saveScreenshot(self):
         self.ignoreFocus = True
         fileName = QFileDialog.getSaveFileName(
@@ -115,7 +124,7 @@ class Screenshooter(QWidget):
             self.hide()
             self.screenshot.copy(self.selection).save(fileName[0])
 
-    def copyScreenshotToClipboard(self):
+    def copyScreenshot(self):
         QApplication.clipboard().setImage(
             self.screenshot.copy(self.selection).toImage())
         self.hide()

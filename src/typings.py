@@ -26,3 +26,8 @@ class ResizePointAlignment(Enum):
     BottomLeft = 6
     Bottom = 7
     BottomRight = 8
+
+
+class ToolkitButtons(Enum):
+    Save = 0
+    Copy = 1
