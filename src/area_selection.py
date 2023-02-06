@@ -75,7 +75,6 @@ class SelectionResizePoint(QLabel):
 
         self.setFixedSize(8, 8)
         self.setStyleSheet("background-color: white")
-        self.show()
 
         match alignment:
             case ResizePointAlignment.TopLeft | ResizePointAlignment.BottomRight:
@@ -254,7 +253,6 @@ class AreaSelection(QWidget):
         # Call this method after any change of self.selection
         QToolTip.showText(
             QCursor.pos(),
-            # TODO abs
             f"{abs(self.selection.width())}x{abs(self.selection.height())}"
         )
         self.selectionPreview.setSelection(self.selection)
@@ -275,7 +273,9 @@ class AreaSelection(QWidget):
             point.hide()
 
     def startTransorm(self) -> None:
+        self.selection = self.selection.normalized()
         self.transformStart.emit()
 
     def endTransform(self) -> None:
+        self.selection = self.selection.normalized()
         self.transformEnd.emit(self.selection)

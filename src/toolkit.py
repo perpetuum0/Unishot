@@ -1,20 +1,31 @@
-from PySide6.QtWidgets import QWidget, QLabel, QGraphicsBlurEffect, QGridLayout, QHBoxLayout, QPushButton
-from PySide6.QtGui import QPixmap, QColor, QPainter, Qt
+from PySide6.QtWidgets import QWidget, QLabel, QGraphicsBlurEffect, QHBoxLayout, QVBoxLayout, QPushButton
+from PySide6.QtGui import QPixmap, Qt
 from PySide6.QtCore import QSize, Signal
 
-from typings import ToolkitButtons
+from typings import ToolkitButtons, ToolkitOrientation
 
 
 class Toolkit(QWidget):
+    Button = ToolkitButtons
+    Orientation = ToolkitOrientation
     action = Signal(ToolkitButtons)
 
-    def __init__(self, parent: QWidget) -> None:
+    def __init__(self, parent: QWidget, orientation: Orientation) -> None:
         super().__init__(parent)
-        self.setFixedSize(QSize(300, 30))
+        if orientation == orientation.Horizontal:
+            self.setFixedSize(QSize(300, 30))
+            buttonSize = QSize(self.height(), self.height())
+
+            layout = QHBoxLayout(self)
+            layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        else:
+            self.setFixedSize(QSize(30, 200))
+            buttonSize = QSize(self.width(), self.width())
+
+            layout = QVBoxLayout(self)
+            layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.backgroundLabel = ToolkitBackground(self, self.size())
-
-        buttonSize = QSize(self.height(), self.height())
 
         self.saveButton = ToolkitButton(
             self, QPixmap("../images/saveIcon.png"), "Save to...", buttonSize)
@@ -28,9 +39,7 @@ class Toolkit(QWidget):
             lambda: self.action.emit(ToolkitButtons.Copy)
         )
 
-        layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         layout.addWidget(self.saveButton)
         layout.addWidget(self.copyButton)

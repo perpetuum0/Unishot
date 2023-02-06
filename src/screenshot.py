@@ -7,13 +7,13 @@ from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QShortcut, QKeySequence)
 from area_selection import AreaSelection
 from toolkit import Toolkit
-from typings import ToolkitButtons
+from utils import isPointOnScreen
 
 
 class Screenshooter(QWidget):
     ignoreFocus: bool
-
     selection: QRect
+    screens: list[QScreen]
     screenshot: QPixmap
 
     previewLabel: QLabel
@@ -21,32 +21,37 @@ class Screenshooter(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint | Qt.WindowStaysOnTopHint
         )
         self.move(0, 0)
 
         self.previewLabel = QLabel(self)
-        # self.previewLabel.geom
-        self.previewLabel.show()
-
         self.areaSelection = AreaSelection(self)
-        self.areaSelection.show()
-        self.areaSelection.transformStart.connect(self.hideToolkit)
+
+        self.areaSelection.transformStart.connect(
+            self.hideToolkits
+        )
         self.areaSelection.transformEnd.connect(
-            lambda sel: [self.setSelection(sel), self.showToolkit()]
+            lambda sel: [self.setSelection(sel), self.showToolkits()]
         )
 
-        self.toolkit = Toolkit(
-            self.areaSelection)
-        self.toolkit.action.connect(self.toolkitAction)
+        self.toolkitHor = Toolkit(
+            self.areaSelection,
+            Toolkit.Orientation.Horizontal
+        )
+        self.toolkitVer = Toolkit(
+            self.areaSelection,
+            Toolkit.Orientation.Vertical
+        )
+
+        self.toolkitHor.action.connect(self.toolkitAction)
+        self.toolkitVer.action.connect(self.toolkitAction)
 
         self.saveShortcut = QShortcut(QKeySequence.StandardKey.Save, self)
         self.saveShortcut.activated.connect(self.saveScreenshot)
         self.clipboardShortcut = QShortcut(QKeySequence.StandardKey.Copy, self)
-        self.clipboardShortcut.activated.connect(
-            self.copyScreenshot)
+        self.clipboardShortcut.activated.connect(self.copyScreenshot)
 
     def activate(self):
         self.ignoreFocus = False
@@ -60,7 +65,7 @@ class Screenshooter(QWidget):
         screenshots = self.getScreenshots(self.screens)
         self.screenshot = self.mergeScreenshots(screenshots)
 
-        self.hideToolkit()
+        self.hideToolkits()
         self.updatePreview(self.screenshot)
         self.areaSelection.start(self.screenshot)
 
@@ -106,11 +111,11 @@ class Screenshooter(QWidget):
         self.previewLabel.setFixedSize(w, h)
         self.previewLabel.setPixmap(newPreview)
 
-    def toolkitAction(self, button: ToolkitButtons):
+    def toolkitAction(self, button: Toolkit.Button):
         match button:
-            case ToolkitButtons.Save:
+            case Toolkit.Button.Save:
                 self.saveScreenshot()
-            case ToolkitButtons.Copy:
+            case Toolkit.Button.Copy:
                 self.copyScreenshot()
 
     def saveScreenshot(self):
@@ -136,20 +141,34 @@ class Screenshooter(QWidget):
     def setSelection(self, newSelection: QRect):
         self.selection = newSelection
 
-    def showToolkit(self):
-        # TODO: adjust to screen corners
-        pos = self.selection
-        self.toolkit.move(pos.x()-1, pos.y()-35)
-        self.toolkit.show()
+    def showToolkits(self):
+        posH = self.alignToolkit(
+            self.toolkitHor.geometry(), oy1=-40, ox2=-self.toolkitHor.width(), oy2=10)
+        posV = self.alignToolkit(
+            self.toolkitVer.geometry(), ox1=-40, oy2=-self.toolkitVer.height(), ox2=10)
 
-    def hideToolkit(self):
-        self.toolkit.hide()
+        self.toolkitHor.move(posH)
+        self.toolkitVer.move(posV)
 
-    def isPointOnScreen(self, point: QPoint) -> bool:
-        for scr in self.screens:
-            if scr.geometry().contains(point):
-                return True
-        return False
+        self.toolkitHor.show()
+        self.toolkitVer.show()
+
+    def hideToolkits(self):
+        self.toolkitHor.hide()
+        self.toolkitVer.hide()
+
+    def alignToolkit(self, geometry: QRect, ox1=0, oy1=0, ox2=0, oy2=0) -> QPoint:
+        geometry.moveTo(
+            self.selection.topLeft().x()+ox1,
+            self.selection.topLeft().y()+oy1
+        )
+        if not isPointOnScreen(geometry.topLeft()):
+            geometry.moveTo(
+                self.selection.bottomRight().x()+ox2,
+                self.selection.bottomRight().y()+oy2
+            )
+
+        return QPoint(geometry.x(), geometry.y())
 
     def event(self, event: QEvent) -> bool:
         if event.type() == QEvent.WindowDeactivate and not self.ignoreFocus:

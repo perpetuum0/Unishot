@@ -28,6 +28,11 @@ class ResizePointAlignment(Enum):
     BottomRight = 8
 
 
+class ToolkitOrientation(Enum):
+    Horizontal = 0
+    Vertical = 1
+
+
 class ToolkitButtons(Enum):
     Save = 0
     Copy = 1
