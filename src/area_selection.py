@@ -3,6 +3,7 @@ from PySide6.QtGui import QPixmap, QMouseEvent, Qt, QCursor
 from PySide6.QtCore import QRect, QPoint, QPointF, Signal
 
 from typings import ResizePointAlignment
+from utils import isPointOnScreen
 
 
 class SelectionPreview(QLabel):
@@ -216,10 +217,22 @@ class AreaSelection(QWidget):
 
     def setSelection(self, x1: int, y1: int, x2: int, y2: int) -> None:
         self.selection.setCoords(x1, y1, x2, y2)
+        self.showTooltip()
         self.selectionChanged()
 
     def moveSelection(self, moveTo: QPoint) -> None:
+        # TODO this can be done better in future
+        prevPos = self.selection.topLeft()
+
         self.selection.moveTo(moveTo)
+
+        newPoints = [self.selection.topLeft(), self.selection.topRight(),
+                     self.selection.bottomLeft(), self.selection.bottomRight()]
+
+        for p in newPoints:
+            if not isPointOnScreen(p):
+                self.selection.moveTo(prevPos)
+
         self.selectionChanged()
 
     def resizeSelection(self, alignment: ResizePointAlignment, point: QPoint) -> None:
@@ -247,14 +260,11 @@ class AreaSelection(QWidget):
 
             case ResizePointAlignment.BottomRight:
                 self.selection.setBottomRight(point)
+        self.showTooltip()
         self.selectionChanged()
 
     def selectionChanged(self) -> None:
         # Call this method after any change of self.selection
-        QToolTip.showText(
-            QCursor.pos(),
-            f"{abs(self.selection.width())}x{abs(self.selection.height())}"
-        )
         self.selectionPreview.setSelection(self.selection)
         self.alignResizePoints()
         self.showResizePoints()
@@ -271,6 +281,12 @@ class AreaSelection(QWidget):
     def hideResizePoints(self) -> None:
         for point in self.resizePoints:
             point.hide()
+
+    def showTooltip(self) -> None:
+        QToolTip.showText(
+            QCursor.pos(),
+            f"{abs(self.selection.width())}x{abs(self.selection.height())}"
+        )
 
     def startTransorm(self) -> None:
         self.selection = self.selection.normalized()
