@@ -36,3 +36,4 @@ class ToolkitOrientation(Enum):
 class ToolkitButtons(Enum):
     Save = 0
     Copy = 1
+    Close = 2

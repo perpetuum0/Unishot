@@ -38,10 +38,12 @@ class Screenshooter(QWidget):
 
         self.toolkitHor = Toolkit(
             self.areaSelection,
+            [],  # Drawing buttons here...
             Toolkit.Orientation.Horizontal
         )
         self.toolkitVer = Toolkit(
             self.areaSelection,
+            [Toolkit.Button.Close, Toolkit.Button.Copy, Toolkit.Button.Save],
             Toolkit.Orientation.Vertical
         )
 
@@ -117,6 +119,8 @@ class Screenshooter(QWidget):
                 self.saveScreenshot()
             case Toolkit.Button.Copy:
                 self.copyScreenshot()
+            case Toolkit.Button.Close:
+                self.hide()
 
     def saveScreenshot(self):
         self.ignoreFocus = True

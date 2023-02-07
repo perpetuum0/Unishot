@@ -8,9 +8,11 @@ from typings import ToolkitButtons, ToolkitOrientation
 class Toolkit(QWidget):
     Button = ToolkitButtons
     Orientation = ToolkitOrientation
-    action = Signal(ToolkitButtons)
+    action = Signal(Button)
 
-    def __init__(self, parent: QWidget, orientation: Orientation) -> None:
+    buttons: list[Button]
+
+    def __init__(self, parent: QWidget, buttons: list[Button], orientation: Orientation) -> None:
         super().__init__(parent)
         if orientation == orientation.Horizontal:
             self.setFixedSize(QSize(300, 30))
@@ -25,39 +27,50 @@ class Toolkit(QWidget):
             layout = QVBoxLayout(self)
             layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        self.backgroundLabel = ToolkitBackground(self, self.size())
-
-        self.saveButton = ToolkitButton(
-            self, QPixmap("../images/saveIcon.png"), "Save to...", buttonSize)
-        self.copyButton = ToolkitButton(
-            self, QPixmap("../images/copy.png"), "Copy to Clipboard", buttonSize)
-
-        self.saveButton.clicked.connect(
-            lambda: self.action.emit(ToolkitButtons.Save)
-        )
-        self.copyButton.clicked.connect(
-            lambda: self.action.emit(ToolkitButtons.Copy)
-        )
-
         layout.setContentsMargins(0, 0, 0, 0)
 
-        layout.addWidget(self.saveButton)
-        layout.addWidget(self.copyButton)
+        self.backgroundLabel = ToolkitBackground(self, self.size())
+
+        self.buttons = []
+        for btnType in buttons:
+            btn = ToolkitButton(self, btnType, buttonSize)
+            btn.clickedWithType.connect(self.action.emit)
+            layout.addWidget(btn)
+            self.buttons.append(btn)
 
 
 class ToolkitButton(QPushButton):
-    def __init__(self, parent: QWidget, icon: QPixmap, label="", size: QSize = None, iconSize: QSize = None):
+    buttonType: ToolkitButtons
+    clickedWithType = Signal(ToolkitButtons)
+
+    def __init__(self, parent: QWidget, buttonType: ToolkitButtons, size: QSize = None):
         super().__init__(parent)
-        size = parent.size() if not size else size
+        self.buttonType = buttonType
+
         iconSize = QSize(
-            size.height()-10, size.height() - 10
-        ) if not iconSize else iconSize
+            size.height() - 10, size.height() - 10
+        )
 
         self.setFlat(True)
-        self.setToolTip(label)
         self.setIconSize(iconSize)
-        self.setIcon(icon)
         self.setFixedSize(size)
+
+        label, icon = None, None
+        match buttonType:
+            # TODO: load resources from .qrc file
+            case ToolkitButtons.Save:
+                label = "Save to..."
+                icon = QPixmap("../images/saveIcon.png")
+            case ToolkitButtons.Copy:
+                label = "Copy to Clipboard"
+                icon = QPixmap("../images/copy.png")
+            case ToolkitButtons.Close:
+                label = "Close"
+                icon = QPixmap("../images/close.png")
+
+        self.setToolTip(label)
+        self.setIcon(icon)
+        self.clicked.connect(lambda: self.clickedWithType.emit(buttonType))
 
 
 class ToolkitBackground(QLabel):
