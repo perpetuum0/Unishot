@@ -33,7 +33,21 @@ class ToolkitOrientation(Enum):
     Vertical = 1
 
 
+class DrawTools(Enum):
+    Pencil = "Pencil"
+    Line = "Line"
+    Arrow = "Arrow"
+    Square = "Square"
+    Ellipse = "Ellipse"
+
+
 class ToolkitButtons(Enum):
-    Save = 0
-    Copy = 1
-    Close = 2
+    Save = "Save"
+    Copy = "Copy"
+    Close = "Close"
+    Cursor = "Cursor"
+    DrawPencil = DrawTools.Pencil
+    DrawLine = DrawTools.Line
+    DrawArrow = DrawTools.Arrow
+    DrawSquare = DrawTools.Square
+    DrawEllipse = DrawTools.Ellipse

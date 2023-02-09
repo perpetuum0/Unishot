@@ -7,6 +7,7 @@ from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QShortcut, QKeySequence)
 from area_selection import AreaSelection
 from toolkit import Toolkit
+from drawing import Draw
 from utils import isPointOnScreen
 
 
@@ -18,6 +19,7 @@ class Screenshooter(QWidget):
 
     previewLabel: QLabel
     areaSelection: AreaSelection
+    draw: Draw
 
     def __init__(self) -> None:
         super().__init__()
@@ -25,7 +27,6 @@ class Screenshooter(QWidget):
             Qt.WindowType.FramelessWindowHint | Qt.WindowStaysOnTopHint
         )
         self.move(0, 0)
-
         self.previewLabel = QLabel(self)
         self.areaSelection = AreaSelection(self)
 
@@ -37,12 +38,16 @@ class Screenshooter(QWidget):
         )
 
         self.toolkitHor = Toolkit(
-            self.areaSelection,
-            [],  # Drawing buttons here...
+            self,
+            [Toolkit.Button.DrawPencil,
+             Toolkit.Button.DrawLine,
+             Toolkit.Button.DrawArrow,
+             Toolkit.Button.DrawSquare,
+             Toolkit.Button.DrawEllipse],  # Drawing buttons here...
             Toolkit.Orientation.Horizontal
         )
         self.toolkitVer = Toolkit(
-            self.areaSelection,
+            self,
             [Toolkit.Button.Close, Toolkit.Button.Copy, Toolkit.Button.Save],
             Toolkit.Orientation.Vertical
         )
@@ -54,6 +59,8 @@ class Screenshooter(QWidget):
         self.saveShortcut.activated.connect(self.saveScreenshot)
         self.clipboardShortcut = QShortcut(QKeySequence.StandardKey.Copy, self)
         self.clipboardShortcut.activated.connect(self.copyScreenshot)
+
+        self.draw = Draw(self)
 
     def activate(self):
         self.ignoreFocus = False
@@ -68,6 +75,8 @@ class Screenshooter(QWidget):
         self.screenshot = self.mergeScreenshots(screenshots)
 
         self.hideToolkits()
+        self.draw.stop()
+        self.draw.setCanvas(self.screenshot.rect())
         self.updatePreview(self.screenshot)
         self.areaSelection.start(self.screenshot)
 
@@ -114,6 +123,7 @@ class Screenshooter(QWidget):
         self.previewLabel.setPixmap(newPreview)
 
     def toolkitAction(self, button: Toolkit.Button):
+        self.draw.stop()
         match button:
             case Toolkit.Button.Save:
                 self.saveScreenshot()
@@ -121,6 +131,16 @@ class Screenshooter(QWidget):
                 self.copyScreenshot()
             case Toolkit.Button.Close:
                 self.hide()
+            case Toolkit.Button.Cursor:
+                self.draw.stop()
+            case Toolkit.Button.DrawPencil | \
+                    Toolkit.Button.DrawLine | \
+                    Toolkit.Button.DrawArrow | \
+                    Toolkit.Button.DrawSquare | \
+                    Toolkit.Button.DrawEllipse:
+                self.draw.start(button.value)
+                self.toolkitHor.raise_()
+                self.toolkitVer.raise_()
 
     def saveScreenshot(self):
         self.ignoreFocus = True
@@ -183,6 +203,7 @@ class Screenshooter(QWidget):
         return super().event(event)
 
     def keyPressEvent(self, event) -> None:
+        # Hide on hitting ESC
         if (event.key() == 16777216):
             self.hide()
             event.accept()
