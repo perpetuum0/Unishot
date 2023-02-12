@@ -6,7 +6,7 @@ from screenshot import Screenshooter
 app = QApplication([])
 app.setQuitOnLastWindowClosed(False)
 
-icon = QIcon("../images/icon.png")
+icon = QIcon(":/icons/tray")
 
 tray = QSystemTrayIcon()
 tray.setIcon(icon)

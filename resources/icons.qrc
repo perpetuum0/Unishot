@@ -1,0 +1,14 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/icons">
+    <file alias="close">images/close.svg</file>
+    <file alias="copy">images/copy.png</file>
+    <file alias="tray">images/tray.png</file>
+    <file alias="save">images/save.png</file>
+    <file alias="brush">images/brush.svg</file>
+    <file alias="line">images/line.svg</file>
+    <file alias="arrow">images/arrow.svg</file>
+    <file alias="square">images/square.svg</file>
+    <file alias="circle">images/circle.svg</file>
+    <file alias="text">images/text.svg</file>
+</qresource>
+</RCC>

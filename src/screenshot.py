@@ -39,11 +39,14 @@ class Screenshooter(QWidget):
 
         self.toolkitHor = Toolkit(
             self,
-            [Toolkit.Button.DrawPencil,
-             Toolkit.Button.DrawLine,
-             Toolkit.Button.DrawArrow,
-             Toolkit.Button.DrawSquare,
-             Toolkit.Button.DrawEllipse],  # Drawing buttons here...
+            [
+                Toolkit.Button.DrawBrush,
+                Toolkit.Button.DrawArrow,
+                Toolkit.Button.DrawLine,
+                Toolkit.Button.DrawSquare,
+                Toolkit.Button.DrawEllipse,
+                Toolkit.Button.DrawText,
+            ],
             Toolkit.Orientation.Horizontal
         )
         self.toolkitVer = Toolkit(
@@ -133,7 +136,7 @@ class Screenshooter(QWidget):
                 self.hide()
             case Toolkit.Button.Cursor:
                 self.draw.stop()
-            case Toolkit.Button.DrawPencil | \
+            case Toolkit.Button.DrawBrush | \
                     Toolkit.Button.DrawLine | \
                     Toolkit.Button.DrawArrow | \
                     Toolkit.Button.DrawSquare | \

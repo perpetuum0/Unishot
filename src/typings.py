@@ -34,20 +34,24 @@ class ToolkitOrientation(Enum):
 
 
 class DrawTools(Enum):
-    Pencil = "Pencil"
-    Line = "Line"
-    Arrow = "Arrow"
-    Square = "Square"
-    Ellipse = "Ellipse"
+    # Values represent icon names
+    Brush = "brush"
+    Line = "line"
+    Arrow = "arrow"
+    Square = "square"
+    Ellipse = "circle"
+    Text = "text"
 
 
 class ToolkitButtons(Enum):
-    Save = "Save"
-    Copy = "Copy"
-    Close = "Close"
-    Cursor = "Cursor"
-    DrawPencil = DrawTools.Pencil
+    # Values represent icon names or corresponding DrawTool
+    Save = "save"
+    Copy = "copy"
+    Close = "close"
+    Cursor = "cursor"
+    DrawBrush = DrawTools.Brush
     DrawLine = DrawTools.Line
     DrawArrow = DrawTools.Arrow
     DrawSquare = DrawTools.Square
     DrawEllipse = DrawTools.Ellipse
+    DrawText = DrawTools.Text

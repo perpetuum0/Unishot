@@ -36,24 +36,20 @@ class ToolkitButton(QPushButton):
 
         label, icon = None, None
         match buttonType:
-            # TODO: load resources from .qrc file
             case ToolkitButtons.Save:
                 label = "Save to..."
-                icon = QPixmap("../images/saveIcon.png")
+                icon = QPixmap(":/icons/"+buttonType.value)
             case ToolkitButtons.Copy:
                 label = "Copy to Clipboard"
-                icon = QPixmap("../images/copy.png")
+                icon = QPixmap(":/icons/"+buttonType.value)
             case ToolkitButtons.Close:
                 label = "Close"
-                icon = QPixmap("../images/close.png")
-            case ToolkitButtons.DrawPencil |\
-                    ToolkitButtons.DrawLine |\
-                    ToolkitButtons.DrawArrow |\
-                    ToolkitButtons.DrawSquare |\
-                    ToolkitButtons.DrawEllipse:
+                icon = QPixmap(":/icons/"+buttonType.value)
+            case DrawTools:
                 self.setCheckable(True)
-                label = buttonType.value.value
-                icon = QPixmap("../images/close.png")
+                drawTool = buttonType.value
+                label = drawTool.name
+                icon = QPixmap(":/icons/"+drawTool.value)
 
         self.setToolTip(label)
         self.setIcon(icon)
