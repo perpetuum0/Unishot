@@ -1,10 +1,11 @@
-from typings import Screenshot
 from PySide6.QtWidgets import QWidget, QLabel, QApplication, QFileDialog
 from PySide6.QtCore import (
     Qt, QPoint, QSize, QEvent, QRect, QStandardPaths)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen,
                            QShortcut, QKeySequence)
+
+from typings import Screenshot
 from area_selection import AreaSelection
 from toolkit import Toolkit
 from drawing import Draw
@@ -78,8 +79,8 @@ class Screenshooter(QWidget):
         self.screenshot = self.mergeScreenshots(screenshots)
 
         self.hideToolkits()
-        self.draw.stop()
         self.draw.setCanvas(self.screenshot.rect())
+        self.draw.stop()
         self.updatePreview(self.screenshot)
         self.areaSelection.start(self.screenshot)
 
@@ -90,14 +91,14 @@ class Screenshooter(QWidget):
             geom = screen.geometry()
 
             screenshots.append(
-                Screenshot(screen.grabWindow(0), QPoint(geom.x(), geom.y()))
+                Screenshot(QPoint(geom.x(), geom.y()), screen.grabWindow(0))
             )
 
         return screenshots
 
     def mergeScreenshots(self, screenshots: list[Screenshot]) -> QPixmap:
         width, height = 0, 0
-        for pixmap, pos in screenshots:
+        for pos, pixmap in screenshots:
             width += pixmap.width()
             if height < pixmap.height():
                 height = pixmap.height()
@@ -106,7 +107,7 @@ class Screenshooter(QWidget):
         mergedShot.fill(QColor(0, 0, 0, 0))
 
         painter = QPainter(mergedShot)
-        for pixmap, pos in screenshots:
+        for pos, pixmap in screenshots:
             painter.drawPixmap(pos, pixmap)
         painter.end()
 
@@ -136,11 +137,7 @@ class Screenshooter(QWidget):
                 self.hide()
             case Toolkit.Button.Cursor:
                 self.draw.stop()
-            case Toolkit.Button.DrawBrush | \
-                    Toolkit.Button.DrawLine | \
-                    Toolkit.Button.DrawArrow | \
-                    Toolkit.Button.DrawSquare | \
-                    Toolkit.Button.DrawEllipse:
+            case DrawTools:
                 self.draw.start(button.value)
                 self.toolkitHor.raise_()
                 self.toolkitVer.raise_()
@@ -158,12 +155,22 @@ class Screenshooter(QWidget):
         self.ignoreFocus = False
         if fileName != ('', ''):
             self.hide()
-            self.screenshot.copy(self.selection).save(fileName[0])
+            self.getFinalScreenshot().save(fileName[0])
 
     def copyScreenshot(self):
         QApplication.clipboard().setImage(
-            self.screenshot.copy(self.selection).toImage())
+            self.getFinalScreenshot().toImage())
         self.hide()
+
+    def getFinalScreenshot(self):
+        screenshot = self.screenshot.copy(self.selection)
+
+        painter = QPainter(screenshot)
+        painter.drawPixmap(
+            QPoint(0, 0), self.draw.drawPixmap().copy(self.selection)
+        )
+
+        return screenshot
 
     def setSelection(self, newSelection: QRect):
         self.selection = newSelection
