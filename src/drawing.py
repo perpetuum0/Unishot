@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QLabel, QTextEdit
-from PySide6.QtCore import Qt, QRect, QPoint, QLineF, Signal, QSize
-from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QPainterPath, QPen, QShortcut, QKeySequence, QColor
+from PySide6.QtCore import Qt, QRect, QLineF, Signal
+from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QPainterPath, QPen, QColor, QWheelEvent
 
 from utils import mapPointToRect, expandRect
 from typings import DrawTools, Drawing
@@ -9,7 +9,7 @@ from typings import DrawTools, Drawing
 class DrawTextEdit(QTextEdit):
     lostFocus = Signal()
 
-    def __init__(self, parent: QWidget, color=QColor("red")):
+    def __init__(self, parent: QWidget, color=QColor("red"), fontSize=12):
         super().__init__(parent)
         self.setStyleSheet(
             "background-color: rgba(0,0,0,0); border: 1px dotted white; padding: 0px")
@@ -18,6 +18,21 @@ class DrawTextEdit(QTextEdit):
         self.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setTextColor(color)
+        self.setFontPointSize(fontSize)
+
+    def upFontSize(self):
+        if self.fontPointSize() < 96:
+            self.setFontSize(self.fontPointSize()+2)
+
+    def downFontSize(self):
+        if self.fontPointSize() > 8:
+            self.setFontSize(self.fontPointSize()-2)
+
+    def setFontSize(self, size: float):
+        cur = self.textCursor()
+        self.selectAll()
+        self.setFontPointSize(size)
+        self.setTextCursor(cur)
 
     def focusOutEvent(self, e) -> None:
         self.lostFocus.emit()
@@ -30,6 +45,7 @@ class Draw(QLabel):
 
     active: bool
     tool: Tools
+    penWidth: int
     color: QColor
     preview: QPixmap
     drawings: list[Drawing]
@@ -49,14 +65,13 @@ class Draw(QLabel):
         self.setCursor(Qt.CursorShape.UpArrowCursor)  # Debug
         self.setTransparent(True)
 
-    def start(self, tool: Tools, color=QColor("red"), width: int = 5):
+    def start(self, tool: Tools):
+        self.tool = tool
         self.active = True
+        self.brushPoints = []
+
         self.textEdit.hide()
         self.setTransparent(False)
-        self.tool = tool
-        self.color = color
-        self.penWidth = width
-        self.brushPoints = []
 
     def stop(self):
         self.active = False
@@ -64,9 +79,11 @@ class Draw(QLabel):
         self.setTransparent(True)
 
     def setCanvas(self, rect: QRect):
+        self.penWidth = 5
+        self.color = QColor("red")
         self.drawings = []
+
         self.setGeometry(rect)
-        self.textEdit.resize(rect.size())
         self.updatePreview()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
@@ -99,7 +116,7 @@ class Draw(QLabel):
     def doDrawing(self) -> None:
         if self.newDrawing:
             self.newDrawing = False
-        else:
+        elif len(self.drawings) > 0:
             self.drawings.pop()
 
         # Append for any tool except Text, and if text check for input length
@@ -108,19 +125,8 @@ class Draw(QLabel):
 
         self.updatePreview()
 
-    def drawPixmap(self) -> QPixmap:
-        pixmap = QPixmap(self.size())
-        pixmap.fill("transparent")
-        painter = QPainter(pixmap)
-
-        for p, dr in self.drawings:
-            painter.drawPixmap(p, dr)
-        painter.end()
-
-        return pixmap
-
     def getDrawing(self) -> Drawing:
-        margin = self.penWidth*2  # Prevent cropping drawings
+        margin = self.penWidth*2.5  # Prevent cropping drawings
 
         selectionRect = expandRect(
             QRect(self.startPoint, self.endPoint), margin
@@ -163,21 +169,26 @@ class Draw(QLabel):
             case self.Tools.Line:
                 painter.drawLine(localStartPoint, localEndPoint)
             case self.Tools.Text:
+                font = self.textEdit.font()
+                font.setPointSize(self.textEdit.fontPointSize())
+                painter.setFont(font)
                 painter.drawText(localRect, self.textEdit.toPlainText())
 
         return Drawing(selectionRect, pixmap)
 
-    def startTextEdit(self):
+    def startTextEdit(self) -> None:
         self.editingText = True
         self.textEdit.lostFocus.connect(self.stopTextEdit)
         self.textEdit.setGeometry(
-            expandRect(QRect(self.startPoint,
-                             self.endPoint), 5)
+            expandRect(
+                QRect(self.startPoint,
+                      self.endPoint), 5  # 5 is default QTextEdit padding
+            )
         )
         self.textEdit.show()
         self.textEdit.setFocus()
 
-    def stopTextEdit(self):
+    def stopTextEdit(self) -> None:
         if self.editingText:
             self.editingText = False
             self.textEdit.lostFocus.disconnect()
@@ -186,6 +197,24 @@ class Draw(QLabel):
             self.textEdit.hide()
             self.textEdit.clear()
             self.parent().setFocus()
+
+    def setColor(self, color: QColor) -> None:
+        self.color = color
+        self.doDrawing()
+
+    def setPenWidth(self, width: int) -> None:
+        self.penWidth = width
+        self.doDrawing()
+
+    def upPenWidth(self, multiplier=1) -> int:
+        if self.penWidth < 50:
+            self.setPenWidth(self.penWidth + 2*multiplier)
+        return self.penWidth
+
+    def downPenWidth(self, multiplier=1) -> int:
+        if self.penWidth >= 2:
+            self.setPenWidth(self.penWidth - 2*multiplier)
+        return self.penWidth
 
     def undo(self) -> None:
         try:
@@ -198,8 +227,36 @@ class Draw(QLabel):
         self.preview = self.drawPixmap()
         self.setPixmap(self.preview)
 
+    def drawPixmap(self) -> QPixmap:
+        pixmap = QPixmap(self.size())
+        pixmap.fill("transparent")
+        painter = QPainter(pixmap)
+
+        for p, dr in self.drawings:
+            painter.drawPixmap(p, dr)
+        painter.end()
+
+        return pixmap
+
     def setTransparent(self, transparent: bool):
         self.setAttribute(self.attribute, on=transparent)
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        if self.active:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                if self.editingText:
+                    self.textEdit.upFontSize()
+                else:
+                    self.upPenWidth()
+            elif delta < 0:
+                if self.editingText:
+                    self.textEdit.downFontSize()
+                else:
+                    self.downPenWidth()
+            event.accept()
+        else:
+            event.ignore()
 
     def keyPressEvent(self, event) -> None:
         # Stop text editing on hitting ESC
