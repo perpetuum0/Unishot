@@ -30,6 +30,7 @@ class Screenshooter(QWidget):
         self.move(0, 0)
         self.previewLabel = QLabel(self)
         self.areaSelection = AreaSelection(self)
+        self.draw = Draw(self)
 
         self.areaSelection.transformStart.connect(
             self.hideToolkits
@@ -41,6 +42,7 @@ class Screenshooter(QWidget):
         self.toolkitHor = Toolkit(
             self,
             [
+                Toolkit.Button.Cursor,
                 Toolkit.Button.DrawBrush,
                 Toolkit.Button.DrawArrow,
                 Toolkit.Button.DrawLine,
@@ -63,8 +65,8 @@ class Screenshooter(QWidget):
         self.saveShortcut.activated.connect(self.saveScreenshot)
         self.clipboardShortcut = QShortcut(QKeySequence.StandardKey.Copy, self)
         self.clipboardShortcut.activated.connect(self.copyScreenshot)
-
-        self.draw = Draw(self)
+        self.undoShortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
+        self.undoShortcut.activated.connect(self.draw.undo)
 
     def activate(self):
         self.ignoreFocus = False
@@ -215,7 +217,11 @@ class Screenshooter(QWidget):
     def keyPressEvent(self, event) -> None:
         # Hide on hitting ESC
         if (event.key() == 16777216):
-            self.hide()
+            if self.draw.active:
+                self.toolkitHor.clearTool()
+                self.toolkitVer.clearTool()
+            else:
+                self.hide()
             event.accept()
         else:
             event.ignore()

@@ -62,6 +62,7 @@ class Toolkit(QWidget):
     action = Signal(Button)
 
     buttons: list[ToolkitButton]
+    cursorButton: ToolkitButton = None
     selectedTool: ToolkitButton = None
 
     def __init__(self, parent: QWidget, buttons: list[Button], orientation: Orientation) -> None:
@@ -88,6 +89,9 @@ class Toolkit(QWidget):
             btn = ToolkitButton(self, btnType, buttonSize)
             btn.clickedT.connect(self.buttonClicked)
             layout.addWidget(btn)
+            if btnType is self.Button.Cursor:
+                self.cursorButton = btn
+                self.cursorButton.setChecked(True)
             self.buttons.append(btn)
 
     def buttonClicked(self, buttonType: Button, button: ToolkitButton = None) -> None:
@@ -95,6 +99,8 @@ class Toolkit(QWidget):
             # Double clicking tool stops drawing
             self.clearTool()
         else:
+            if self.cursorButton:
+                self.cursorButton.setChecked(False)
             # If button is tool
             if type(buttonType.value) is DrawTools:
                 if self.selectedTool:
@@ -103,16 +109,6 @@ class Toolkit(QWidget):
 
             self.action.emit(buttonType)
 
-    def keyPressEvent(self, event) -> None:
-        # Hide on hitting ESC
-        if event.key() == 16777216 and \
-                self.selectedTool and \
-                self.selectedTool.buttonType is not self.Button.Cursor:
-            self.clearTool()
-            event.accept()
-        else:
-            event.ignore()
-
     def hideEvent(self, event) -> None:
         self.clearTool()
 
@@ -120,5 +116,6 @@ class Toolkit(QWidget):
         if self.selectedTool:
             self.selectedTool.setChecked(False)
             self.selectedTool = None
-        # TODO: Make cursor checked...
+        if self.cursorButton:
+            self.cursorButton.setChecked(True)
         self.action.emit(self.Button.Cursor)

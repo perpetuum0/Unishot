@@ -12,3 +12,13 @@ def isPointOnScreen(point: QPoint) -> bool:
 def mapPointToRect(globalP: QPoint, rect: QRect):
     return QPoint(globalP.x()-rect.left(),
                   globalP.y()-rect.top())
+
+
+def expandRect(rect: QRect, margin: int):
+    rect = rect.normalized()
+    return QRect(
+        QPoint(rect.topLeft().x()-margin,
+               rect.topLeft().y()-margin),
+        QPoint(rect.bottomRight().x()+margin,
+               rect.bottomRight().y()+margin)
+    )

@@ -32,6 +32,7 @@ class ToolkitOrientation(Enum):
 
 class DrawTools(Enum):
     # Values represent icon names
+    Cursor = "cursor"
     Brush = "brush"
     Line = "line"
     Arrow = "arrow"
@@ -45,7 +46,7 @@ class ToolkitButtons(Enum):
     Save = "save"
     Copy = "copy"
     Close = "close"
-    Cursor = "cursor"
+    Cursor = DrawTools.Cursor
     DrawBrush = DrawTools.Brush
     DrawLine = DrawTools.Line
     DrawArrow = DrawTools.Arrow

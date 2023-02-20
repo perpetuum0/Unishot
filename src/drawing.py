@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QWidget, QLabel, QTextEdit
 from PySide6.QtCore import Qt, QRect, QPoint, QLineF, Signal, QSize
 from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QPainterPath, QPen, QShortcut, QKeySequence, QColor
 
-from utils import mapPointToRect
+from utils import mapPointToRect, expandRect
 from typings import DrawTools, Drawing
 
 
@@ -11,7 +11,8 @@ class DrawTextEdit(QTextEdit):
 
     def __init__(self, parent: QWidget, color=QColor("red")):
         super().__init__(parent)
-        self.setStyleSheet("background-color: rgba(0,0,0,0); border: none")
+        self.setStyleSheet(
+            "background-color: rgba(0,0,0,0); border: 1px dotted white; padding: 0px")
         self.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(
@@ -27,11 +28,12 @@ class Draw(QLabel):
     Tools = DrawTools
     attribute = Qt.WidgetAttribute.WA_TransparentForMouseEvents
 
+    active: bool
     tool: Tools
     color: QColor
     preview: QPixmap
     drawings: list[Drawing]
-    textEdit: QTextEdit
+    textEdit: DrawTextEdit
 
     editingText: bool
     newDrawing: bool
@@ -39,18 +41,16 @@ class Draw(QLabel):
 
     def __init__(self, parent: QWidget):
         super().__init__(parent)
+        self.active = False
+        self.editingText = False
         self.textEdit = DrawTextEdit(self)
         self.textEdit.hide()
-        self.textEdit.lostFocus.connect(self.stopTextEdit)
-        self.editingText = False
-
-        self.undoShortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
-        self.undoShortcut.activated.connect(self.undo)
 
         self.setCursor(Qt.CursorShape.UpArrowCursor)  # Debug
         self.setTransparent(True)
 
     def start(self, tool: Tools, color=QColor("red"), width: int = 5):
+        self.active = True
         self.textEdit.hide()
         self.setTransparent(False)
         self.tool = tool
@@ -59,6 +59,8 @@ class Draw(QLabel):
         self.brushPoints = []
 
     def stop(self):
+        self.active = False
+        self.stopTextEdit()
         self.setTransparent(True)
 
     def setCanvas(self, rect: QRect):
@@ -68,36 +70,41 @@ class Draw(QLabel):
         self.updatePreview()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        if self.editingText:
-            self.stopTextEdit()
+        self.stopTextEdit()
 
+        self.newDrawing = True
         self.startPoint = event.globalPos()
         self.brushPath = QPainterPath(self.startPoint)
-        self.newDrawing = True
-        self.editingText = True
 
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         self.endPoint = event.globalPos()
-        self.doDrawing()
+        self.toolAction()
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         self.endPoint = event.globalPos()
-        self.doDrawing()
+        self.toolAction()
         event.accept()
 
-    def doDrawing(self) -> None:
+    def toolAction(self):
         if self.tool is self.Tools.Brush:
             self.brushPath.lineTo(self.endPoint)
-
-        if not self.newDrawing:
-            self.drawings.pop()
+        if self.tool is self.Tools.Text:
+            self.startTextEdit()
         else:
-            self.newDrawing = False
+            self.doDrawing()
 
-        self.drawings.append(self.getDrawing())
+    def doDrawing(self) -> None:
+        if self.newDrawing:
+            self.newDrawing = False
+        else:
+            self.drawings.pop()
+
+        # Append for any tool except Text, and if text check for input length
+        if (self.tool is not self.Tools.Text) or (len(self.textEdit.toPlainText()) > 0):
+            self.drawings.append(self.getDrawing())
 
         self.updatePreview()
 
@@ -113,15 +120,11 @@ class Draw(QLabel):
         return pixmap
 
     def getDrawing(self) -> Drawing:
-        margin = self.penWidth  # Prevent cropping drawings
-        normalized = QRect(self.startPoint, self.endPoint).normalized()
-        selectionRect = QRect(
-            QPoint(normalized.topLeft().x()-margin,
-                   normalized.topLeft().y()-margin),
-            QPoint(normalized.bottomRight().x()+margin,
-                   normalized.bottomRight().y()+margin)
-        ) if not self.tool is self.Tools.Brush \
-            else self.geometry()
+        margin = self.penWidth*2  # Prevent cropping drawings
+
+        selectionRect = expandRect(
+            QRect(self.startPoint, self.endPoint), margin
+        ) if not self.tool is self.Tools.Brush else self.geometry()
 
         localStartPoint = mapPointToRect(self.startPoint, selectionRect)
         localEndPoint = mapPointToRect(self.endPoint, selectionRect)
@@ -160,31 +163,36 @@ class Draw(QLabel):
             case self.Tools.Line:
                 painter.drawLine(localStartPoint, localEndPoint)
             case self.Tools.Text:
-                if self.editingText:
-                    self.startTextEdit(selectionRect.topLeft())
-                else:
-                    painter.drawText(localRect, self.textEdit.toPlainText())
+                painter.drawText(localRect, self.textEdit.toPlainText())
 
         return Drawing(selectionRect, pixmap)
 
-    def startTextEdit(self, position: QPoint):
-        self.textEdit.move(position)
+    def startTextEdit(self):
+        self.editingText = True
+        self.textEdit.lostFocus.connect(self.stopTextEdit)
+        self.textEdit.setGeometry(
+            expandRect(QRect(self.startPoint,
+                             self.endPoint), 5)
+        )
         self.textEdit.show()
         self.textEdit.setFocus()
 
     def stopTextEdit(self):
-        self.editingText = False
-        self.doDrawing()
+        if self.editingText:
+            self.editingText = False
+            self.textEdit.lostFocus.disconnect()
+            self.doDrawing()
 
-        self.textEdit.hide()
-        self.textEdit.clear()
+            self.textEdit.hide()
+            self.textEdit.clear()
+            self.parent().setFocus()
 
     def undo(self) -> None:
         try:
             self.drawings.pop()
             self.updatePreview()
         except IndexError:
-            pass  # Play warning Windows sound
+            pass  # TODO: Play warning Windows sound
 
     def updatePreview(self) -> None:
         self.preview = self.drawPixmap()
@@ -192,3 +200,11 @@ class Draw(QLabel):
 
     def setTransparent(self, transparent: bool):
         self.setAttribute(self.attribute, on=transparent)
+
+    def keyPressEvent(self, event) -> None:
+        # Stop text editing on hitting ESC
+        if event.key() == 16777216 and self.editingText:
+            self.stopTextEdit()
+            event.accept()
+        else:
+            event.ignore()
