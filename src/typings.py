@@ -2,7 +2,7 @@ from typing import NamedTuple
 from enum import Enum
 
 from PySide6.QtCore import QPoint
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QColorConstants
 
 
 class PixmapF(NamedTuple):
@@ -46,7 +46,8 @@ class ToolkitButtons(Enum):
     Save = "save"
     Copy = "copy"
     Close = "close"
-    Cursor = DrawTools.Cursor
+    Color = "color"
+    Cursor = "cursor"
     DrawBrush = DrawTools.Brush
     DrawLine = DrawTools.Line
     DrawArrow = DrawTools.Arrow

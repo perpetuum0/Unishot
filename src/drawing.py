@@ -9,7 +9,7 @@ from typings import DrawTools, Drawing
 class DrawTextEdit(QTextEdit):
     lostFocus = Signal()
 
-    def __init__(self, parent: QWidget, color=QColor("red"), fontSize=12):
+    def __init__(self, parent: QWidget, fontSize=12):
         super().__init__(parent)
         self.setStyleSheet(
             "background-color: rgba(0,0,0,0); border: 1px dotted white; padding: 0px")
@@ -17,7 +17,6 @@ class DrawTextEdit(QTextEdit):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setTextColor(color)
         self.setFontPointSize(fontSize)
 
     def upFontSize(self):
@@ -52,6 +51,7 @@ class Draw(QLabel):
     textEdit: DrawTextEdit
 
     editingText: bool
+    isDrawing: bool
     newDrawing: bool
     brushPath: QPainterPath
 
@@ -59,8 +59,11 @@ class Draw(QLabel):
         super().__init__(parent)
         self.active = False
         self.editingText = False
+        self.newDrawing = False
+        self.isDrawing = False
         self.textEdit = DrawTextEdit(self)
         self.textEdit.hide()
+        self.color = QColor("red")  # default
 
         self.setCursor(Qt.CursorShape.UpArrowCursor)  # Debug
         self.setTransparent(True)
@@ -80,7 +83,6 @@ class Draw(QLabel):
 
     def setCanvas(self, rect: QRect):
         self.penWidth = 5
-        self.color = QColor("red")
         self.drawings = []
 
         self.setGeometry(rect)
@@ -89,6 +91,7 @@ class Draw(QLabel):
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.stopTextEdit()
 
+        self.isDrawing = True
         self.newDrawing = True
         self.startPoint = event.globalPos()
         self.brushPath = QPainterPath(self.startPoint)
@@ -103,6 +106,7 @@ class Draw(QLabel):
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         self.endPoint = event.globalPos()
         self.toolAction()
+        self.isDrawing = False
         event.accept()
 
     def toolAction(self):
@@ -200,11 +204,12 @@ class Draw(QLabel):
 
     def setColor(self, color: QColor) -> None:
         self.color = color
-        self.doDrawing()
+        self.textEdit.setTextColor(color)
 
     def setPenWidth(self, width: int) -> None:
         self.penWidth = width
-        self.doDrawing()
+        if self.isDrawing:
+            self.doDrawing()
 
     def upPenWidth(self, multiplier=1) -> int:
         if self.penWidth < 50:
@@ -235,6 +240,8 @@ class Draw(QLabel):
         for p, dr in self.drawings:
             painter.drawPixmap(p, dr)
         painter.end()
+
+        # TODO post processing (flip, rotate) here...
 
         return pixmap
 

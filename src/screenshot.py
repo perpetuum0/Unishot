@@ -7,12 +7,13 @@ from PySide6.QtGui import (QGuiApplication, QPixmap,
 
 from typings import Screenshot
 from area_selection import AreaSelection
-from toolkit import Toolkit
+from toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
 from drawing import Draw
-from utils import isPointOnScreen
+from utils import isPointOnScreen, mapPointToRect
 
 
 class Screenshooter(QWidget):
+    active: bool
     ignoreFocus: bool
     selection: QRect
     screens: list[QScreen]
@@ -28,16 +29,22 @@ class Screenshooter(QWidget):
             Qt.WindowType.FramelessWindowHint | Qt.WindowStaysOnTopHint
         )
         self.move(0, 0)
+
         self.previewLabel = QLabel(self)
         self.areaSelection = AreaSelection(self)
         self.draw = Draw(self)
+        self.active = False
 
         self.areaSelection.transformStart.connect(
-            self.hideToolkits
+            self.hideToolkit
         )
         self.areaSelection.transformEnd.connect(
-            lambda sel: [self.setSelection(sel), self.showToolkits()]
+            lambda sel: [self.setSelection(sel), self.showToolkit()]
         )
+
+        self.colorMenu = ToolkitColorMenu(self)
+        self.colorMenu.currentColorChanged.connect(self.draw.setColor)
+        self.draw.setColor(self.colorMenu.currentColor())
 
         self.toolkitHor = Toolkit(
             self,
@@ -49,6 +56,7 @@ class Screenshooter(QWidget):
                 Toolkit.Button.DrawSquare,
                 Toolkit.Button.DrawEllipse,
                 Toolkit.Button.DrawText,
+                Toolkit.Button.Color,
             ],
             Toolkit.Orientation.Horizontal
         )
@@ -69,8 +77,10 @@ class Screenshooter(QWidget):
         self.undoShortcut.activated.connect(self.draw.undo)
 
     def activate(self):
+        self.active = True
         self.ignoreFocus = False
         self.shoot()
+
         self.show()
         self.activateWindow()
 
@@ -80,7 +90,7 @@ class Screenshooter(QWidget):
         screenshots = self.getScreenshots(self.screens)
         self.screenshot = self.mergeScreenshots(screenshots)
 
-        self.hideToolkits()
+        self.hideToolkit()
         self.draw.setCanvas(self.screenshot.rect())
         self.draw.stop()
         self.updatePreview(self.screenshot)
@@ -128,9 +138,9 @@ class Screenshooter(QWidget):
         self.previewLabel.setFixedSize(w, h)
         self.previewLabel.setPixmap(newPreview)
 
-    def toolkitAction(self, button: Toolkit.Button):
+    def toolkitAction(self, buttonType: Toolkit.Button, button: ToolkitButton):
         self.draw.stop()
-        match button:
+        match buttonType:
             case Toolkit.Button.Save:
                 self.saveScreenshot()
             case Toolkit.Button.Copy:
@@ -139,8 +149,18 @@ class Screenshooter(QWidget):
                 self.hide()
             case Toolkit.Button.Cursor:
                 self.draw.stop()
+            case Toolkit.Button.Color:
+                self.colorMenu.toggle(
+                    QPoint(
+                        button.x()+button.parent().x()+button.width()/2,
+                        button.y()+button.parent().y()
+                    )
+                )
+                self.colorMenu.currentColorChanged.connect(
+                    button.setColorIcon
+                )
             case DrawTools:
-                self.draw.start(button.value)
+                self.draw.start(buttonType.value)
                 self.toolkitHor.raise_()
                 self.toolkitVer.raise_()
 
@@ -177,7 +197,7 @@ class Screenshooter(QWidget):
     def setSelection(self, newSelection: QRect):
         self.selection = newSelection
 
-    def showToolkits(self):
+    def showToolkit(self):
         posH = self.alignToolkit(
             self.toolkitHor.geometry(), oy1=-40, ox2=-self.toolkitHor.width(), oy2=10)
         posV = self.alignToolkit(
@@ -189,9 +209,10 @@ class Screenshooter(QWidget):
         self.toolkitHor.show()
         self.toolkitVer.show()
 
-    def hideToolkits(self):
+    def hideToolkit(self):
         self.toolkitHor.hide()
         self.toolkitVer.hide()
+        self.colorMenu.deactivate()
 
     def alignToolkit(self, geometry: QRect, ox1=0, oy1=0, ox2=0, oy2=0) -> QPoint:
         geometry.moveTo(
@@ -216,7 +237,7 @@ class Screenshooter(QWidget):
 
     def keyPressEvent(self, event) -> None:
         # Hide on hitting ESC
-        if (event.key() == 16777216):
+        if event.key() == Qt.Key.Key_Escape:
             if self.draw.active:
                 self.toolkitHor.clearTool()
                 self.toolkitVer.clearTool()
@@ -225,3 +246,6 @@ class Screenshooter(QWidget):
             event.accept()
         else:
             event.ignore()
+
+    def hideEvent(self, ev) -> None:
+        self.active = False

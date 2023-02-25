@@ -57,7 +57,8 @@ class Unishot(QApplication):
         self.hotkeyThread.start()
 
     def screenshot(self) -> None:
-        self.shooter.activate()
+        if not self.shooter.active:
+            self.shooter.activate()
 
     def trayActivated(self, activationReason: QSystemTrayIcon) -> None:
         if (activationReason == QSystemTrayIcon.ActivationReason.Trigger):
