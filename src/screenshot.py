@@ -9,7 +9,7 @@ from typings import Screenshot
 from area_selection import AreaSelection
 from toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
 from drawing import Draw
-from utils import isPointOnScreen, mapPointToRect
+import utils
 
 
 class Screenshooter(QWidget):
@@ -75,6 +75,8 @@ class Screenshooter(QWidget):
         self.clipboardShortcut.activated.connect(self.copyScreenshot)
         self.undoShortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
         self.undoShortcut.activated.connect(self.draw.undo)
+        self.redoShortcut = QShortcut(QKeySequence.StandardKey.Redo, self)
+        self.redoShortcut.activated.connect(self.draw.redo)
 
     def activate(self):
         self.active = True
@@ -90,37 +92,46 @@ class Screenshooter(QWidget):
         screenshots = self.getScreenshots(self.screens)
         self.screenshot = self.mergeScreenshots(screenshots)
 
+        cRect = utils.circumRect(
+            [s.Geometry for s in screenshots]
+        )
+
+        self.setGeometry(cRect)
+
         self.hideToolkit()
-        self.draw.setCanvas(self.screenshot.rect())
+        self.draw.setCanvas(cRect)
         self.draw.stop()
         self.updatePreview(self.screenshot)
-        self.areaSelection.start(self.screenshot)
+        self.areaSelection.start(self.screenshot, cRect.topLeft())
 
     def getScreenshots(self, screens: list[QScreen]) -> list[Screenshot]:
         screenshots = list[Screenshot]()
 
         for screen in screens:
-            geom = screen.geometry()
-
             screenshots.append(
-                Screenshot(QPoint(geom.x(), geom.y()), screen.grabWindow(0))
+                Screenshot(screen.geometry(), screen.grabWindow(0))
             )
 
         return screenshots
 
     def mergeScreenshots(self, screenshots: list[Screenshot]) -> QPixmap:
-        width, height = 0, 0
-        for pos, pixmap in screenshots:
-            width += pixmap.width()
-            if height < pixmap.height():
-                height = pixmap.height()
+        cRect = utils.circumRect(
+            [s.Geometry for s in screenshots]
+        )
+        offset = cRect.topLeft()
 
-        mergedShot = QPixmap(QSize(width, height))
+        mergedShot = QPixmap(
+            cRect.width() - offset.x(),
+            cRect.height() - offset.y()
+        )
         mergedShot.fill(QColor(0, 0, 0, 0))
 
         painter = QPainter(mergedShot)
-        for pos, pixmap in screenshots:
-            painter.drawPixmap(pos, pixmap)
+        for geom, pixmap in screenshots:
+            painter.drawPixmap(
+                utils.QDiff(geom.topLeft(), offset),
+                pixmap
+            )
         painter.end()
 
         return mergedShot
@@ -158,6 +169,9 @@ class Screenshooter(QWidget):
                 )
                 self.colorMenu.currentColorChanged.connect(
                     button.setColorIcon
+                )
+                self.colorMenu.deactivated.connect(
+                    lambda: button.setChecked(False)
                 )
             case DrawTools:
                 self.draw.start(buttonType.value)
@@ -219,7 +233,7 @@ class Screenshooter(QWidget):
             self.selection.topLeft().x()+ox1,
             self.selection.topLeft().y()+oy1
         )
-        if not isPointOnScreen(geometry.topLeft()):
+        if not utils.isPointOnScreen(geometry.topLeft()):
             geometry.moveTo(
                 self.selection.bottomRight().x()+ox2,
                 self.selection.bottomRight().y()+oy2
@@ -238,7 +252,9 @@ class Screenshooter(QWidget):
     def keyPressEvent(self, event) -> None:
         # Hide on hitting ESC
         if event.key() == Qt.Key.Key_Escape:
-            if self.draw.active:
+            if self.colorMenu.active:
+                self.colorMenu.deactivate()
+            elif self.draw.active:
                 self.toolkitHor.clearTool()
                 self.toolkitVer.clearTool()
             else:

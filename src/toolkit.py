@@ -19,6 +19,9 @@ class ToolkitBackground(QLabel):
 
 
 class ToolkitColorMenu(QColorDialog):
+    activated = Signal()
+    deactivated = Signal()
+
     DEFAULT_COLOR = QColor(255, 0, 0, 255)
     active: bool
 
@@ -42,27 +45,28 @@ class ToolkitColorMenu(QColorDialog):
 
     def toggle(self, pos: QPoint):
         if self.active:
-            self.active = False
-            self.hide()
+            self.deactivate()
         else:
-            self.active = True
-            self.showAt(pos)
-
-    def showAt(self, at: QPoint):
-        self.alignTo(at)
-        self.show()
+            self.alignTo(pos)
+            self.activate()
 
     def alignTo(self, point: QPoint):
         pos = QPoint(
             point.x()-self.width()/2,
-            point.y()-self.height()-10
+            point.y()-self.height()-9
         )
 
         self.move(pos)
 
+    def activate(self):
+        self.active = True
+        self.show()
+        self.activated.emit()
+
     def deactivate(self):
         self.active = False
         self.hide()
+        self.deactivated.emit()
 
 
 class ToolkitButton(QPushButton):

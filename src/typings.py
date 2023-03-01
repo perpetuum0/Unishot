@@ -1,17 +1,18 @@
 from typing import NamedTuple
 from enum import Enum
 
-from PySide6.QtCore import QPoint
-from PySide6.QtGui import QPixmap, QColorConstants
+from PySide6.QtCore import QPoint, QRect
+from PySide6.QtGui import QPixmap
 
 
-class PixmapF(NamedTuple):
-    Position: QPoint
+class Screenshot(NamedTuple):
+    Geometry: QRect
     Pixmap: QPixmap
 
 
-Drawing = PixmapF
-Screenshot = PixmapF
+class Drawing(NamedTuple):
+    Position: QPoint
+    Pixmap: QPixmap
 
 
 class ResizePointAlignment(Enum):

@@ -2,8 +2,8 @@ from PySide6.QtWidgets import QWidget, QLabel, QToolTip
 from PySide6.QtGui import QPixmap, QMouseEvent, Qt, QCursor
 from PySide6.QtCore import QRect, QPoint, QPointF, Signal
 
+import utils
 from typings import ResizePointAlignment
-from utils import isPointOnScreen
 
 
 class SelectionPreview(QLabel):
@@ -165,11 +165,13 @@ class AreaSelection(QWidget):
     resizePoints: list[SelectionResizePoint]
     selectionPreview: SelectionPreview
     selection: QRect
+    screenOffset: QPoint
     borderWidth: int = 2
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
         self.selection = QRect(0, 0, 0, 0)
+        self.screenOffset = QPoint(0, 0)
         self.borderWidth = 2
 
         self.setCursor(Qt.CursorShape.CrossCursor)
@@ -193,7 +195,8 @@ class AreaSelection(QWidget):
                 lambda tup: self.resizeSelection(tup[0], tup[1])
             )
 
-    def start(self, newShot: QPixmap) -> None:
+    def start(self, newShot: QPixmap, offset: QPoint) -> None:
+        self.screenOffset = offset
         self.setFixedSize(newShot.size())
         self.hideResizePoints()
         self.selectionPreview.start(newShot)
@@ -201,7 +204,7 @@ class AreaSelection(QWidget):
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.startTransorm()
         self.setSelection(0, 0, 0, 0)
-        self.moveSelection(event.pos())
+        self.selection.moveTo(event.pos())
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
@@ -222,6 +225,7 @@ class AreaSelection(QWidget):
 
     def moveSelection(self, moveTo: QPoint) -> None:
         # TODO this can be done better in future
+        moveTo = utils.QDiff(moveTo, self.screenOffset)
         prevPos = self.selection.topLeft()
 
         self.selection.moveTo(moveTo)
@@ -230,12 +234,14 @@ class AreaSelection(QWidget):
                      self.selection.bottomLeft(), self.selection.bottomRight()]
 
         for p in newPoints:
-            if not isPointOnScreen(p):
+            p = utils.QSum(p, self.screenOffset)
+            if not utils.isPointOnScreen(p):
                 self.selection.moveTo(prevPos)
 
         self.selectionChanged()
 
     def resizeSelection(self, alignment: ResizePointAlignment, point: QPoint) -> None:
+        point = utils.QDiff(point, self.screenOffset)
         match alignment:
             case ResizePointAlignment.TopLeft:
                 self.selection.setTopLeft(point)

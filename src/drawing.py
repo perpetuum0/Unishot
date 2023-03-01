@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import QWidget, QLabel, QTextEdit
-from PySide6.QtCore import Qt, QRect, QLineF, Signal
+from PySide6.QtCore import Qt, QRect, QLineF, Signal, QSize
 from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QPainterPath, QPen, QColor, QWheelEvent
 
-from utils import mapPointToRect, expandRect
+import utils
 from typings import DrawTools, Drawing
 
 
@@ -42,14 +42,16 @@ class Draw(QLabel):
     Tools = DrawTools
     attribute = Qt.WidgetAttribute.WA_TransparentForMouseEvents
 
-    active: bool
-    tool: Tools
-    penWidth: int
-    color: QColor
-    preview: QPixmap
-    drawings: list[Drawing]
     textEdit: DrawTextEdit
 
+    active: bool
+    tool: Tools
+    color: QColor
+    penWidth: int
+    drawings: list[Drawing]
+    preview: QPixmap
+
+    undoHistory: list[Drawing]
     editingText: bool
     isDrawing: bool
     newDrawing: bool
@@ -81,11 +83,13 @@ class Draw(QLabel):
         self.stopTextEdit()
         self.setTransparent(True)
 
-    def setCanvas(self, rect: QRect):
+    def setCanvas(self, geometry: QRect):
         self.penWidth = 5
         self.drawings = []
+        self.undoHistory = []
 
-        self.setGeometry(rect)
+        self.screenOffset = geometry.topLeft()
+        self.resize(geometry.size())
         self.updatePreview()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
@@ -93,18 +97,18 @@ class Draw(QLabel):
 
         self.isDrawing = True
         self.newDrawing = True
-        self.startPoint = event.globalPos()
+        self.startPoint = utils.QDiff(event.globalPos(), self.screenOffset)
         self.brushPath = QPainterPath(self.startPoint)
 
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        self.endPoint = event.globalPos()
+        self.endPoint = utils.QDiff(event.globalPos(), self.screenOffset)
         self.toolAction()
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        self.endPoint = event.globalPos()
+        self.endPoint = utils.QDiff(event.globalPos(), self.screenOffset)
         self.toolAction()
         self.isDrawing = False
         event.accept()
@@ -132,12 +136,12 @@ class Draw(QLabel):
     def getDrawing(self) -> Drawing:
         margin = self.penWidth*2.5  # Prevent cropping drawings
 
-        selectionRect = expandRect(
+        selectionRect = utils.expandRect(
             QRect(self.startPoint, self.endPoint), margin
         ) if not self.tool is self.Tools.Brush else self.geometry()
 
-        localStartPoint = mapPointToRect(self.startPoint, selectionRect)
-        localEndPoint = mapPointToRect(self.endPoint, selectionRect)
+        localStartPoint = utils.mapPointToRect(self.startPoint, selectionRect)
+        localEndPoint = utils.mapPointToRect(self.endPoint, selectionRect)
         localRect = QRect(localStartPoint, localEndPoint).normalized()
 
         pixmap = QPixmap(selectionRect.size())
@@ -184,7 +188,7 @@ class Draw(QLabel):
         self.editingText = True
         self.textEdit.lostFocus.connect(self.stopTextEdit)
         self.textEdit.setGeometry(
-            expandRect(
+            utils.expandRect(
                 QRect(self.startPoint,
                       self.endPoint), 5  # 5 is default QTextEdit padding
             )
@@ -223,7 +227,14 @@ class Draw(QLabel):
 
     def undo(self) -> None:
         try:
-            self.drawings.pop()
+            self.undoHistory.append(self.drawings.pop())
+            self.updatePreview()
+        except IndexError:
+            pass  # TODO: Play warning Windows sound
+
+    def redo(self):
+        try:
+            self.drawings.append(self.undoHistory.pop())
             self.updatePreview()
         except IndexError:
             pass  # TODO: Play warning Windows sound
