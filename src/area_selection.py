@@ -1,9 +1,9 @@
 from PySide6.QtWidgets import QWidget, QLabel, QToolTip
-from PySide6.QtGui import QPixmap, QMouseEvent, Qt, QCursor
+from PySide6.QtGui import QPixmap, QMouseEvent, Qt, QCursor, QTransform
 from PySide6.QtCore import QRect, QPoint, QPointF, Signal
 
 import utils
-from typings import ResizePointAlignment
+from typings import ResizePointAlignment, PostEffects
 
 
 class SelectionPreview(QLabel):
@@ -12,6 +12,7 @@ class SelectionPreview(QLabel):
     moveEnd = Signal()
 
     screenshot: QPixmap
+    effects: PostEffects
     borderWidth: int
     dragPoint: QPointF
 
@@ -19,6 +20,7 @@ class SelectionPreview(QLabel):
         super().__init__(parent)
         self.parent = parent
         self.borderWidth = borderWidth
+        self.effects = PostEffects()
 
         self.setStyleSheet(
             f"border: {borderWidth}px dashed white")
@@ -40,8 +42,28 @@ class SelectionPreview(QLabel):
         )
 
         self.setPixmap(
-            self.screenshot.copy(areaNormalized)
+            self.postprocess(self.screenshot.copy(areaNormalized))
         )
+
+        # Do preview post processing here...
+        # TODO update here
+
+    def setEffects(self, newEffects: PostEffects):
+        self.effects = newEffects
+        self.move(
+            self.pos().x()+self.borderWidth,
+            self.pos().y()
+        )
+        self.setSelection(self.geometry())
+
+    def postprocess(self, pixmap: QPixmap) -> QPixmap:
+        pixmap = QPixmap(pixmap).transformed(
+            QTransform().scale(
+                self.effects.flip.x,
+                self.effects.flip.y
+            )
+        )
+        return pixmap
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.dragPoint = event.localPos()
@@ -179,7 +201,7 @@ class AreaSelection(QWidget):
         self.selectionPreview = SelectionPreview(self, self.borderWidth)
         self.selectionPreview.show()
 
-        self.selectionPreview.moveStart.connect(self.startTransorm)
+        self.selectionPreview.moveStart.connect(self.startTransform)
         self.selectionPreview.moved.connect(self.moveSelection)
         self.selectionPreview.moveEnd.connect(self.endTransform)
 
@@ -189,7 +211,7 @@ class AreaSelection(QWidget):
                 self, self.selectionPreview, alignment)
             self.resizePoints.append(point)
 
-            point.dragStart.connect(self.startTransorm)
+            point.dragStart.connect(self.startTransform)
             point.dragEnd.connect(self.endTransform)
             point.drag.connect(
                 lambda tup: self.resizeSelection(tup[0], tup[1])
@@ -202,26 +224,31 @@ class AreaSelection(QWidget):
         self.selectionPreview.start(newShot)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        self.startTransorm()
-        self.setSelection(0, 0, 0, 0)
+        self.startTransform()
+        self.setSelection(QRect(0, 0, 0, 0))
         self.selection.moveTo(event.pos())
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        # TODO fix bug
         self.setSelection(
-            self.selection.x(), self.selection.y(),
-            event.x(), event.y()
+            QRect(
+                QPoint(self.selection.x(), self.selection.y()),
+                QPoint(event.x(), event.y())
+            )
         )
+        self.showTooltip()
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         self.endTransform()
         event.accept()
 
-    def setSelection(self, x1: int, y1: int, x2: int, y2: int) -> None:
-        self.selection.setCoords(x1, y1, x2, y2)
-        self.showTooltip()
+    def setSelection(self, newSelection: QRect) -> None:
+        self.startTransform()
+        self.selection = newSelection
         self.selectionChanged()
+        self.endTransform()
 
     def moveSelection(self, moveTo: QPoint) -> None:
         # TODO this can be done better in future
@@ -294,7 +321,7 @@ class AreaSelection(QWidget):
             f"{abs(self.selection.width())}x{abs(self.selection.height())}"
         )
 
-    def startTransorm(self) -> None:
+    def startTransform(self) -> None:
         self.selection = self.selection.normalized()
         self.transformStart.emit()
 

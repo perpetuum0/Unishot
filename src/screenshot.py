@@ -5,7 +5,7 @@ from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen,
                            QShortcut, QKeySequence)
 
-from typings import Screenshot
+from typings import Screenshot, PostEffects
 from area_selection import AreaSelection
 from toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
 from drawing import Draw
@@ -18,6 +18,7 @@ class Screenshooter(QWidget):
     selection: QRect
     screens: list[QScreen]
     screenshot: QPixmap
+    postEffects: PostEffects
 
     previewLabel: QLabel
     areaSelection: AreaSelection
@@ -33,6 +34,7 @@ class Screenshooter(QWidget):
         self.previewLabel = QLabel(self)
         self.areaSelection = AreaSelection(self)
         self.draw = Draw(self)
+        self.postEffects = PostEffects()
         self.active = False
 
         self.areaSelection.transformStart.connect(
@@ -57,6 +59,8 @@ class Screenshooter(QWidget):
                 Toolkit.Button.DrawEllipse,
                 Toolkit.Button.DrawText,
                 Toolkit.Button.Color,
+                Toolkit.Button.FlipVer
+                # [Toolkit.Button.FlipVer, Toolkit.Button.FlipHor]
             ],
             Toolkit.Orientation.Horizontal
         )
@@ -77,6 +81,12 @@ class Screenshooter(QWidget):
         self.undoShortcut.activated.connect(self.draw.undo)
         self.redoShortcut = QShortcut(QKeySequence.StandardKey.Redo, self)
         self.redoShortcut.activated.connect(self.draw.redo)
+        self.selectAllShortcut = QShortcut(
+            QKeySequence.StandardKey.SelectAll, self
+        )
+        self.selectAllShortcut.activated.connect(
+            lambda: self.areaSelection.setSelection(self.screenshot.rect())
+        )
 
     def activate(self):
         self.active = True
@@ -101,6 +111,7 @@ class Screenshooter(QWidget):
         self.hideToolkit()
         self.draw.setCanvas(cRect)
         self.draw.stop()
+        self.postEffects.clear()
         self.updatePreview(self.screenshot)
         self.areaSelection.start(self.screenshot, cRect.topLeft())
 
@@ -173,6 +184,14 @@ class Screenshooter(QWidget):
                 self.colorMenu.deactivated.connect(
                     lambda: button.setChecked(False)
                 )
+            case Toolkit.Button.FlipHor:
+                self.postEffects.flip.y = -1 if self.postEffects.flip.y == 1 else 1
+                self.updatePostEffects()
+            case Toolkit.Button.FlipVer:
+                self.postEffects.flip.x = -1 if self.postEffects.flip.x == 1 else 1
+                self.updatePostEffects()
+            case Toolkit.Button.RotateLeft | Toolkit.Button.RotateRight:
+                raise NotImplementedError
             case DrawTools:
                 self.draw.start(buttonType.value)
                 self.toolkitHor.raise_()
@@ -205,8 +224,14 @@ class Screenshooter(QWidget):
         painter.drawPixmap(
             QPoint(0, 0), self.draw.drawPixmap().copy(self.selection)
         )
+        # TODO Do post processing here...
 
         return screenshot
+
+    def updatePostEffects(self):
+        self.areaSelection.selectionPreview.setEffects(
+            self.postEffects
+        )
 
     def setSelection(self, newSelection: QRect):
         self.selection = newSelection

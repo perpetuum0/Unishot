@@ -252,8 +252,6 @@ class Draw(QLabel):
             painter.drawPixmap(p, dr)
         painter.end()
 
-        # TODO post processing (flip, rotate) here...
-
         return pixmap
 
     def setTransparent(self, transparent: bool):

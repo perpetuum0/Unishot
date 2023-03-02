@@ -106,6 +106,14 @@ class ToolkitButton(QPushButton):
                 label = "Cursor"
                 icon = QPixmap(":/icons/"+buttonType.value)
                 self.setCheckable(True)
+            case ToolkitButtons.FlipVer:
+                label = "Flip vertically"
+                icon = QPixmap(":/icons/close")  # DEBUG
+            case ToolkitButtons.FlipHor:
+                label = "Flip horizontally"
+                icon = QPixmap(":/icons/tray")  # DEBUG
+            case ToolkitButtons.RotateRight | ToolkitButtons.RotateLeft:
+                raise NotImplementedError
             case DrawTools:
                 self.setCheckable(True)
                 drawTool = buttonType.value
