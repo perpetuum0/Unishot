@@ -17,7 +17,7 @@ class HotkeyListener(QObject):
 
 
 class Unishot(QApplication):
-    def __init__(self):
+    def __init__(self) -> None:
         super(Unishot, self).__init__()
         self.setQuitOnLastWindowClosed(False)
         self.aboutToQuit.connect(self.quitEvent)
@@ -57,7 +57,7 @@ class Unishot(QApplication):
         self.hotkeyThread.start()
 
     def screenshot(self) -> None:
-        if not self.shooter.active:
+        if not self.shooter.active():
             self.shooter.activate()
 
     def trayActivated(self, activationReason: QSystemTrayIcon) -> None:

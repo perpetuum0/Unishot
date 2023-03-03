@@ -1,15 +1,61 @@
 from PySide6.QtWidgets import QWidget, QLabel, QTextEdit
-from PySide6.QtCore import Qt, QRect, QLineF, Signal, QSize
-from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QPainterPath, QPen, QColor, QWheelEvent
+from PySide6.QtCore import Qt, QRect, QLineF, Signal
+from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QPainterPath, QPen, QColor, QWheelEvent, QTransform
 
 import utils
 from typings import DrawTools, Drawing
 
 
+class PostEffects():
+    class Flip:
+        x: int = 1
+        y: int = 1
+
+    __angle: int
+    __flip: Flip
+
+    def __init__(self, angle=0, flip=Flip()) -> None:
+        self.__angle = angle
+        self.__flip = flip
+
+    def angle(self) -> int:
+        return self.__angle
+
+    def setAngle(self, angle: int) -> None:
+        self.__angle = angle % 360
+
+    def flip(self) -> Flip:
+        return self.__flip
+
+    def setFlip(self, flip: Flip) -> None:
+        self.__flip = flip
+
+    def toggleFlip(self, x=False, y=False) -> None:
+        if x:
+            self.__flip.x = -1 if self.__flip.x == 1 else 1
+        if y:
+            self.__flip.y = -1 if self.__flip.y == 1 else 1
+
+    def clear(self) -> None:
+        self.__angle = 0
+        self.__flip.x = 1
+        self.__flip.y = 1
+
+    def apply(self, pixmap: QPixmap) -> QPixmap:
+        return QPixmap(pixmap).transformed(
+            QTransform()
+            .scale(
+                self.__flip.x,
+                self.__flip.y
+            )
+            .rotate(self.__angle)
+        )
+
+
 class DrawTextEdit(QTextEdit):
     lostFocus = Signal()
 
-    def __init__(self, parent: QWidget, fontSize=12):
+    def __init__(self, parent: QWidget, fontSize=12) -> None:
         super().__init__(parent)
         self.setStyleSheet(
             "background-color: rgba(0,0,0,0); border: 1px dotted white; padding: 0px")
@@ -19,15 +65,15 @@ class DrawTextEdit(QTextEdit):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setFontPointSize(fontSize)
 
-    def upFontSize(self):
+    def upFontSize(self) -> None:
         if self.fontPointSize() < 96:
             self.setFontSize(self.fontPointSize()+2)
 
-    def downFontSize(self):
+    def downFontSize(self) -> None:
         if self.fontPointSize() > 8:
             self.setFontSize(self.fontPointSize()-2)
 
-    def setFontSize(self, size: float):
+    def setFontSize(self, size: float) -> None:
         cur = self.textCursor()
         self.selectAll()
         self.setFontPointSize(size)
@@ -44,7 +90,7 @@ class Draw(QLabel):
 
     textEdit: DrawTextEdit
 
-    active: bool
+    __active: bool
     tool: Tools
     color: QColor
     penWidth: int
@@ -57,9 +103,9 @@ class Draw(QLabel):
     newDrawing: bool
     brushPath: QPainterPath
 
-    def __init__(self, parent: QWidget):
+    def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
-        self.active = False
+        self.__active = False
         self.editingText = False
         self.newDrawing = False
         self.isDrawing = False
@@ -70,20 +116,20 @@ class Draw(QLabel):
         self.setCursor(Qt.CursorShape.UpArrowCursor)  # Debug
         self.setTransparent(True)
 
-    def start(self, tool: Tools):
+    def start(self, tool: Tools) -> None:
         self.tool = tool
-        self.active = True
+        self.__active = True
         self.brushPoints = []
 
         self.textEdit.hide()
         self.setTransparent(False)
 
-    def stop(self):
-        self.active = False
+    def stop(self) -> None:
+        self.__active = False
         self.stopTextEdit()
         self.setTransparent(True)
 
-    def setCanvas(self, geometry: QRect):
+    def setCanvas(self, geometry: QRect) -> None:
         self.penWidth = 5
         self.drawings = []
         self.undoHistory = []
@@ -113,7 +159,7 @@ class Draw(QLabel):
         self.isDrawing = False
         event.accept()
 
-    def toolAction(self):
+    def toolAction(self) -> None:
         if self.tool is self.Tools.Brush:
             self.brushPath.lineTo(self.endPoint)
         if self.tool is self.Tools.Text:
@@ -232,7 +278,7 @@ class Draw(QLabel):
         except IndexError:
             pass  # TODO: Play warning Windows sound
 
-    def redo(self):
+    def redo(self) -> None:
         try:
             self.drawings.append(self.undoHistory.pop())
             self.updatePreview()
@@ -254,11 +300,11 @@ class Draw(QLabel):
 
         return pixmap
 
-    def setTransparent(self, transparent: bool):
+    def setTransparent(self, transparent: bool) -> None:
         self.setAttribute(self.attribute, on=transparent)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        if self.active:
+        if self.__active:
             delta = event.angleDelta().y()
             if delta > 0:
                 if self.editingText:
@@ -274,9 +320,12 @@ class Draw(QLabel):
         else:
             event.ignore()
 
+    def active(self) -> bool:
+        return self.__active
+
     def keyPressEvent(self, event) -> None:
         # Stop text editing on hitting ESC
-        if event.key() == 16777216 and self.editingText:
+        if event.key() == Qt.Key.Key_Escape and self.editingText:
             self.stopTextEdit()
             event.accept()
         else:

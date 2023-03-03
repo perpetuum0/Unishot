@@ -1,19 +1,19 @@
 from PySide6.QtWidgets import QWidget, QLabel, QApplication, QFileDialog
 from PySide6.QtCore import (
-    Qt, QPoint, QSize, QEvent, QRect, QStandardPaths)
+    Qt, QPoint, QEvent, QRect, QStandardPaths)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen,
                            QShortcut, QKeySequence)
 
-from typings import Screenshot, PostEffects
+from typings import Screenshot
 from area_selection import AreaSelection
 from toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
-from drawing import Draw
+from drawing import Draw, PostEffects
 import utils
 
 
 class Screenshooter(QWidget):
-    active: bool
+    __active: bool
     ignoreFocus: bool
     selection: QRect
     screens: list[QScreen]
@@ -35,7 +35,7 @@ class Screenshooter(QWidget):
         self.areaSelection = AreaSelection(self)
         self.draw = Draw(self)
         self.postEffects = PostEffects()
-        self.active = False
+        self.__active = False
 
         self.areaSelection.transformStart.connect(
             self.hideToolkit
@@ -59,7 +59,8 @@ class Screenshooter(QWidget):
                 Toolkit.Button.DrawEllipse,
                 Toolkit.Button.DrawText,
                 Toolkit.Button.Color,
-                Toolkit.Button.FlipVer
+                Toolkit.Button.FlipHor,
+                Toolkit.Button.FlipVer,
                 # [Toolkit.Button.FlipVer, Toolkit.Button.FlipHor]
             ],
             Toolkit.Orientation.Horizontal
@@ -88,10 +89,11 @@ class Screenshooter(QWidget):
             lambda: self.areaSelection.setSelection(self.screenshot.rect())
         )
 
-    def activate(self):
-        self.active = True
+    def activate(self) -> None:
+        self.__active = True
         self.ignoreFocus = False
         self.shoot()
+        self.selection = self.screenshot.rect()  # select all by default
 
         self.show()
         self.activateWindow()
@@ -160,11 +162,11 @@ class Screenshooter(QWidget):
         self.previewLabel.setFixedSize(w, h)
         self.previewLabel.setPixmap(newPreview)
 
-    def toolkitAction(self, buttonType: Toolkit.Button, button: ToolkitButton):
-        self.draw.stop()
+    def toolkitAction(self, buttonType: Toolkit.Button, button: ToolkitButton) -> None:
         match buttonType:
             case Toolkit.Button.Save:
                 self.saveScreenshot()
+                self.draw.stop()
             case Toolkit.Button.Copy:
                 self.copyScreenshot()
             case Toolkit.Button.Close:
@@ -185,10 +187,10 @@ class Screenshooter(QWidget):
                     lambda: button.setChecked(False)
                 )
             case Toolkit.Button.FlipHor:
-                self.postEffects.flip.y = -1 if self.postEffects.flip.y == 1 else 1
+                self.postEffects.toggleFlip(x=True)
                 self.updatePostEffects()
             case Toolkit.Button.FlipVer:
-                self.postEffects.flip.x = -1 if self.postEffects.flip.x == 1 else 1
+                self.postEffects.toggleFlip(y=True)
                 self.updatePostEffects()
             case Toolkit.Button.RotateLeft | Toolkit.Button.RotateRight:
                 raise NotImplementedError
@@ -197,7 +199,7 @@ class Screenshooter(QWidget):
                 self.toolkitHor.raise_()
                 self.toolkitVer.raise_()
 
-    def saveScreenshot(self):
+    def saveScreenshot(self) -> None:
         self.ignoreFocus = True
         fileName = QFileDialog.getSaveFileName(
             self,
@@ -212,31 +214,34 @@ class Screenshooter(QWidget):
             self.hide()
             self.getFinalScreenshot().save(fileName[0])
 
-    def copyScreenshot(self):
+    def copyScreenshot(self) -> None:
         QApplication.clipboard().setImage(
             self.getFinalScreenshot().toImage())
         self.hide()
 
-    def getFinalScreenshot(self):
-        screenshot = self.screenshot.copy(self.selection)
+    def getFinalScreenshot(self) -> QPixmap:
+        # Post effects do not apply to drawings.
+        finalScreenshot = self.postEffects.apply(
+            self.screenshot.copy(self.selection)
+        )
 
-        painter = QPainter(screenshot)
+        painter = QPainter(finalScreenshot)
         painter.drawPixmap(
             QPoint(0, 0), self.draw.drawPixmap().copy(self.selection)
         )
-        # TODO Do post processing here...
+        painter.end()
 
-        return screenshot
+        return finalScreenshot
 
-    def updatePostEffects(self):
+    def updatePostEffects(self) -> None:
         self.areaSelection.selectionPreview.setEffects(
             self.postEffects
         )
 
-    def setSelection(self, newSelection: QRect):
+    def setSelection(self, newSelection: QRect) -> None:
         self.selection = newSelection
 
-    def showToolkit(self):
+    def showToolkit(self) -> None:
         posH = self.alignToolkit(
             self.toolkitHor.geometry(), oy1=-40, ox2=-self.toolkitHor.width(), oy2=10)
         posV = self.alignToolkit(
@@ -248,7 +253,7 @@ class Screenshooter(QWidget):
         self.toolkitHor.show()
         self.toolkitVer.show()
 
-    def hideToolkit(self):
+    def hideToolkit(self) -> None:
         self.toolkitHor.hide()
         self.toolkitVer.hide()
         self.colorMenu.deactivate()
@@ -277,9 +282,9 @@ class Screenshooter(QWidget):
     def keyPressEvent(self, event) -> None:
         # Hide on hitting ESC
         if event.key() == Qt.Key.Key_Escape:
-            if self.colorMenu.active:
+            if self.colorMenu.active():
                 self.colorMenu.deactivate()
-            elif self.draw.active:
+            elif self.draw.active():
                 self.toolkitHor.clearTool()
                 self.toolkitVer.clearTool()
             else:
@@ -288,5 +293,8 @@ class Screenshooter(QWidget):
         else:
             event.ignore()
 
+    def active(self) -> bool:
+        return self.__active
+
     def hideEvent(self, ev) -> None:
-        self.active = False
+        self.__active = False

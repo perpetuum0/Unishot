@@ -5,34 +5,6 @@ from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QPixmap
 
 
-class PostEffects():
-    class FlipAxis():
-        x: int
-        y: int
-
-        def __init__(self) -> None:
-            self.x = 1
-            self.y = 1
-
-    __angle: int
-    flip: FlipAxis
-
-    def __init__(self, angle=0, flip=FlipAxis()) -> None:
-        self.__angle = angle
-        self.flip = flip
-
-    def setAngle(self, angle: int) -> None:
-        self.__angle = angle % 360
-
-    def angle(self) -> int:
-        return self.__angle
-
-    def clear(self) -> None:
-        self.__angle = 0
-        self.flip.x = 1
-        self.flip.y = 1
-
-
 class Screenshot(NamedTuple):
     Geometry: QRect
     Pixmap: QPixmap
@@ -77,8 +49,8 @@ class ToolkitButtons(Enum):
     Close = "close"
     RotateLeft = "rotate_left"
     RotateRight = "rotate_right"
-    FlipVer = "flip_vertical"
-    FlipHor = "flip_horizontal"
+    FlipVer = "flip_ver"
+    FlipHor = "flip_hor"
     Color = "color"
     Cursor = "cursor"
     DrawBrush = DrawTools.Brush

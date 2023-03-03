@@ -10,19 +10,19 @@ def isPointOnScreen(point: QPoint) -> bool:
     return False
 
 
-def mapPointToRect(globalP: QPoint, rect: QRect):
+def mapPointToRect(globalP: QPoint, rect: QRect) -> QPoint:
     return QPoint(globalP.x()-rect.left(),
                   globalP.y()-rect.top())
 
 
 # TODO: expand these functions
 @dispatch(QPoint, QPoint)
-def QSum(p1: QPoint, p2: QPoint):
+def QSum(p1: QPoint, p2: QPoint) -> QPoint:
     return QPoint(p1.x()+p2.x(), p1.y()+p2.y())
 
 
 @dispatch(QPoint, QPoint)
-def QDiff(p1: QPoint, p2: QPoint):
+def QDiff(p1: QPoint, p2: QPoint) -> QPoint:
     return QPoint(p1.x()-p2.x(), p1.y()-p2.y())
 
 
@@ -45,7 +45,7 @@ def circumRect(rects: list[QRect]) -> QRect:
     return QRect(minPoint, maxPoint)
 
 
-def expandRect(rect: QRect, margin: int):
+def expandRect(rect: QRect, margin: int) -> QRect:
     rect = rect.normalized()
     return QRect(
         QPoint(rect.topLeft().x()-margin,

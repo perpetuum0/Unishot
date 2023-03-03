@@ -1,9 +1,10 @@
 from PySide6.QtWidgets import QWidget, QLabel, QToolTip
-from PySide6.QtGui import QPixmap, QMouseEvent, Qt, QCursor, QTransform
+from PySide6.QtGui import QPixmap, QMouseEvent, Qt, QCursor
 from PySide6.QtCore import QRect, QPoint, QPointF, Signal
 
 import utils
-from typings import ResizePointAlignment, PostEffects
+from drawing import PostEffects
+from typings import ResizePointAlignment
 
 
 class SelectionPreview(QLabel):
@@ -20,6 +21,7 @@ class SelectionPreview(QLabel):
         super().__init__(parent)
         self.parent = parent
         self.borderWidth = borderWidth
+        self.selection = QRect(0, 0, 0, 0)
         self.effects = PostEffects()
 
         self.setStyleSheet(
@@ -28,12 +30,13 @@ class SelectionPreview(QLabel):
 
     def start(self, screenshot) -> None:
         self.screenshot = screenshot
+        self.effects.clear()
         self.setSelection(QRect(0, 0, 0, 0))
 
     def setSelection(self, newSelection: QRect) -> None:
-        areaNormalized = newSelection.normalized()
+        self.selection = newSelection.normalized()
 
-        self.setGeometry(areaNormalized)
+        self.setGeometry(self.selection)
 
         # Adjust to border width
         self.move(
@@ -41,29 +44,16 @@ class SelectionPreview(QLabel):
             self.pos().y()
         )
 
-        self.setPixmap(
-            self.postprocess(self.screenshot.copy(areaNormalized))
-        )
+        self.updatePreview()
 
-        # Do preview post processing here...
-        # TODO update here
-
-    def setEffects(self, newEffects: PostEffects):
+    def setEffects(self, newEffects: PostEffects) -> None:
         self.effects = newEffects
-        self.move(
-            self.pos().x()+self.borderWidth,
-            self.pos().y()
-        )
-        self.setSelection(self.geometry())
+        self.updatePreview()
 
-    def postprocess(self, pixmap: QPixmap) -> QPixmap:
-        pixmap = QPixmap(pixmap).transformed(
-            QTransform().scale(
-                self.effects.flip.x,
-                self.effects.flip.y
-            )
+    def updatePreview(self) -> None:
+        self.setPixmap(
+            self.effects.apply(self.screenshot.copy(self.selection))
         )
-        return pixmap
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.dragPoint = event.localPos()
@@ -90,7 +80,7 @@ class SelectionResizePoint(QLabel):
     alignment: ResizePointAlignment
     borderWidth: int
 
-    def __init__(self, parent: QWidget, alignWith: QWidget, alignment: ResizePointAlignment):
+    def __init__(self, parent: QWidget, alignWith: QWidget, alignment: ResizePointAlignment) -> None:
         super().__init__(parent)
         self.alignment = alignment
         self.alignObj = alignWith
@@ -230,14 +220,14 @@ class AreaSelection(QWidget):
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        # TODO fix bug
+        newSelection = QRect()
+        newSelection.setCoords(self.selection.x(), self.selection.y(),
+                               event.x(), event.y())
         self.setSelection(
             QRect(
-                QPoint(self.selection.x(), self.selection.y()),
-                QPoint(event.x(), event.y())
+                newSelection
             )
         )
-        self.showTooltip()
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -245,10 +235,9 @@ class AreaSelection(QWidget):
         event.accept()
 
     def setSelection(self, newSelection: QRect) -> None:
-        self.startTransform()
-        self.selection = newSelection
+        self.showTooltip()
         self.selectionChanged()
-        self.endTransform()
+        self.selection = newSelection
 
     def moveSelection(self, moveTo: QPoint) -> None:
         # TODO this can be done better in future
