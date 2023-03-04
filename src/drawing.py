@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QWidget, QLabel, QTextEdit
-from PySide6.QtCore import Qt, QRect, QLineF, Signal
+from PySide6.QtWidgets import QWidget, QLabel, QTextEdit, QApplication
+from PySide6.QtCore import Qt, QRect, QLineF, Signal, QPoint
 from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QPainterPath, QPen, QColor, QWheelEvent, QTransform
 
 import utils
@@ -88,6 +88,17 @@ class Draw(QLabel):
     Tools = DrawTools
     attribute = Qt.WidgetAttribute.WA_TransparentForMouseEvents
 
+    AxisLockableTools = [
+        Tools.Line,
+        Tools.Arrow,
+    ]
+    DiagLockableTools = [
+        Tools.Line,
+        Tools.Arrow,
+        Tools.Square,
+        Tools.Ellipse
+    ]
+
     textEdit: DrawTextEdit
 
     __active: bool
@@ -149,15 +160,57 @@ class Draw(QLabel):
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        self.endPoint = utils.QDiff(event.globalPos(), self.screenOffset)
+        self.endPoint = self.getEndPoint(event.globalPos())
         self.toolAction()
         event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        self.endPoint = utils.QDiff(event.globalPos(), self.screenOffset)
-        self.toolAction()
         self.isDrawing = False
         event.accept()
+
+    def getEndPoint(self, cursorPos: QPoint) -> QPoint:
+        point = utils.QDiff(cursorPos, self.screenOffset)
+
+        # Lock tools in 8 directions if CTRL is pressed
+        if QApplication.keyboardModifiers() is Qt.KeyboardModifier.ControlModifier:
+            line = QLineF(self.startPoint, point)
+            ang = line.angle()
+
+            # Lock on axis
+            if self.tool in self.AxisLockableTools:
+                if (ang <= 22.5 or ang >= 337.5) or \
+                        (ang >= 157.5 and ang <= 202.5):
+                    point.setY(self.startPoint.y())
+                    return point
+                elif (ang >= 67.5 and ang <= 112.5) or \
+                        (ang >= 247.5 and ang <= 292.5):
+                    point.setX(self.startPoint.x())
+                    return point
+
+            # Lock on diagonals
+            if self.tool in self.DiagLockableTools:
+                # If tool can be locked on axis check half quarters
+                if self.tool in self.AxisLockableTools:
+                    if (ang > 22.5 and ang < 67.5):
+                        line.setAngle(45)
+                    elif (ang > 112.5 and ang < 157.5):
+                        line.setAngle(135)
+                    elif (ang > 202.5 and ang < 247.5):
+                        line.setAngle(225)
+                    elif (ang > 292.5 and ang < 337.5):
+                        line.setAngle(315)
+                # Otherwise check full quarters
+                else:
+                    if ang <= 90:
+                        line.setAngle(45)
+                    elif ang <= 180:
+                        line.setAngle(135)
+                    elif ang <= 270:
+                        line.setAngle(225)
+                    else:
+                        line.setAngle(315)
+                return line.p2().toPoint()
+        return point
 
     def toolAction(self) -> None:
         if self.tool is self.Tools.Brush:

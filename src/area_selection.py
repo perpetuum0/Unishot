@@ -249,7 +249,7 @@ class AreaSelection(QWidget):
                      self.selection.bottomLeft(), self.selection.bottomRight()]
 
         for p in newPoints:
-            p = utils.QSum(p, self.screenOffset)
+            p = utils.QSum(p.toPoint(), self.screenOffset)
             if not utils.isPointOnScreen(p):
                 self.selection.moveTo(prevPos)
 
