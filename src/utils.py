@@ -1,6 +1,6 @@
 from multipledispatch import dispatch
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtCore import QPoint, QRect
+from PySide6.QtCore import QPoint, QPointF, QLineF, QRect
 
 
 def isPointOnScreen(point: QPoint) -> bool:
@@ -8,6 +8,16 @@ def isPointOnScreen(point: QPoint) -> bool:
         if scr.geometry().contains(point):
             return True
     return False
+
+
+def closestPointToLine(point: QPointF, line: QLineF) -> QPointF:
+    p1 = line.p1()
+    p2 = line.p2()
+    p3 = point
+    dx, dy = p2.x()-p1.x(), p2.y()-p1.y()
+    det = dx*dx + dy*dy
+    a = (dy*(p3.y()-p1.y())+dx*(p3.x()-p1.x()))/det
+    return QPointF(p1.x()+a*dx, p1.y()+a*dy)
 
 
 def mapPointToRect(globalP: QPoint, rect: QRect) -> QPoint:

@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QWidget, QLabel, QToolTip
+from PySide6.QtWidgets import QWidget, QLabel, QToolTip, QApplication
 from PySide6.QtGui import QPixmap, QMouseEvent, Qt, QCursor
-from PySide6.QtCore import QRect, QPoint, QPointF, Signal
+from PySide6.QtCore import QRect, QPoint, QPointF, Signal, QLineF, QPointF, QRectF
 
 import utils
 from drawing import PostEffects
@@ -13,6 +13,7 @@ class SelectionPreview(QLabel):
     moveEnd = Signal()
 
     screenshot: QPixmap
+    selection: QRect
     effects: PostEffects
     borderWidth: int
     dragPoint: QPointF
@@ -172,17 +173,17 @@ class SelectionResizePoint(QLabel):
 
 class AreaSelection(QWidget):
     transformStart = Signal()
-    transformEnd = Signal(QRect)
+    transformEnd = Signal(QRectF)
 
     resizePoints: list[SelectionResizePoint]
     selectionPreview: SelectionPreview
-    selection: QRect
+    selection: QRectF
     screenOffset: QPoint
     borderWidth: int = 2
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
-        self.selection = QRect(0, 0, 0, 0)
+        self.selection = QRectF(0, 0, 0, 0)
         self.screenOffset = QPoint(0, 0)
         self.borderWidth = 2
 
@@ -215,18 +216,16 @@ class AreaSelection(QWidget):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.startTransform()
-        self.setSelection(QRect(0, 0, 0, 0))
+        self.setSelection(QRectF(0, 0, 0, 0))
         self.selection.moveTo(event.pos())
         event.accept()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        newSelection = QRect()
+        newSelection = QRectF()
         newSelection.setCoords(self.selection.x(), self.selection.y(),
                                event.x(), event.y())
         self.setSelection(
-            QRect(
-                newSelection
-            )
+            newSelection
         )
         event.accept()
 
@@ -234,10 +233,10 @@ class AreaSelection(QWidget):
         self.endTransform()
         event.accept()
 
-    def setSelection(self, newSelection: QRect) -> None:
+    def setSelection(self, newSelection: QRectF) -> None:
         self.showTooltip()
-        self.selectionChanged()
         self.selection = newSelection
+        self.selectionChanged()
 
     def moveSelection(self, moveTo: QPoint) -> None:
         # TODO this can be done better in future
@@ -258,6 +257,35 @@ class AreaSelection(QWidget):
 
     def resizeSelection(self, alignment: ResizePointAlignment, point: QPoint) -> None:
         point = utils.QDiff(point, self.screenOffset)
+        modifiers = QApplication.keyboardModifiers()
+        prevSel = QRectF(self.selection)
+
+        if modifiers == Qt.KeyboardModifier.ControlModifier:
+            diag = QLineF()
+            center = self.selection.center()
+            match alignment.value:
+                case "dx":
+                    diag.setPoints(
+                        self.selection.topLeft(),
+                        self.selection.bottomRight()
+                    )
+                case "dy":
+                    diag.setPoints(
+                        self.selection.topRight(),
+                        self.selection.bottomLeft()
+                    )
+                case "x":
+                    diag.setPoints(
+                        QPointF(self.selection.left(), center.y()),
+                        QPointF(self.selection.right(), center.y())
+                    )
+                case "y":
+                    diag.setPoints(
+                        QPointF(center.x(), self.selection.top()),
+                        QPointF(center.x(), self.selection.bottom())
+                    )
+            point = utils.closestPointToLine(point.toPointF(), diag)
+
         match alignment:
             case ResizePointAlignment.TopLeft:
                 self.selection.setTopLeft(point)
@@ -283,11 +311,28 @@ class AreaSelection(QWidget):
             case ResizePointAlignment.BottomRight:
                 self.selection.setBottomRight(point)
         self.showTooltip()
+
+        if modifiers == Qt.KeyboardModifier.ControlModifier:
+            if alignment.value == "y":
+                scale = self.selection.height() / prevSel.height()
+                w = self.selection.width()
+                diff = w*scale-w
+
+                self.selection.setLeft(self.selection.left()-diff/2)
+                self.selection.setRight(self.selection.right()+(diff/2))
+            elif alignment.value == "x":
+                scale = self.selection.width() / prevSel.width()
+                h = self.selection.height()
+                diff = h*scale-h
+
+                self.selection.setTop(self.selection.top()-diff/2)
+                self.selection.setBottom(self.selection.bottom()+(diff/2))
+
         self.selectionChanged()
 
     def selectionChanged(self) -> None:
         # Call this method after any change of self.selection
-        self.selectionPreview.setSelection(self.selection)
+        self.selectionPreview.setSelection(self.selection.toRect())
         self.alignResizePoints()
         self.showResizePoints()
 
@@ -307,7 +352,7 @@ class AreaSelection(QWidget):
     def showTooltip(self) -> None:
         QToolTip.showText(
             QCursor.pos(),
-            f"{abs(self.selection.width())}x{abs(self.selection.height())}"
+            f"{round(abs(self.selection.width()))}x{round(abs(self.selection.height()))}"
         )
 
     def startTransform(self) -> None:

@@ -1,5 +1,6 @@
 from typing import NamedTuple
 from enum import Enum
+import aenum
 
 from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QPixmap
@@ -15,15 +16,18 @@ class Drawing(NamedTuple):
     Pixmap: QPixmap
 
 
-class ResizePointAlignment(Enum):
-    TopLeft = 1
-    Top = 2
-    TopRight = 3
-    CenterLeft = 4
-    CenterRight = 5
-    BottomLeft = 6
-    Bottom = 7
-    BottomRight = 8
+# Ignore duplicate values with aenum
+class ResizePointAlignment(aenum.Enum):
+    _settings_ = aenum.NoAlias
+
+    TopLeft = "dx"
+    Top = "y"
+    TopRight = "dy"
+    CenterLeft = "x"
+    CenterRight = "x"
+    BottomLeft = "dy"
+    Bottom = "y"
+    BottomRight = "dx"
 
 
 class ToolkitOrientation(Enum):

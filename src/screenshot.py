@@ -41,7 +41,7 @@ class Screenshooter(QWidget):
             self.hideToolkit
         )
         self.areaSelection.transformEnd.connect(
-            lambda sel: [self.setSelection(sel), self.showToolkit()]
+            lambda sel: [self.setSelection(sel.toRect()), self.showToolkit()]
         )
 
         self.colorMenu = ToolkitColorMenu(self)
@@ -86,7 +86,9 @@ class Screenshooter(QWidget):
             QKeySequence.StandardKey.SelectAll, self
         )
         self.selectAllShortcut.activated.connect(
-            lambda: self.areaSelection.setSelection(self.screenshot.rect())
+            lambda: self.areaSelection.setSelection(
+                self.screenshot.rect().toRectF()
+            )
         )
 
     def activate(self) -> None:
