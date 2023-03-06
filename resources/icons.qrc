@@ -13,5 +13,6 @@
     <file alias="text">images/text.svg</file>
     <file alias="flip_hor">images/flip_hor.png</file>
     <file alias="flip_ver">images/flip_ver.png</file>
+    <file alias="expand">images/expand.png</file>
 </qresource>
 </RCC>

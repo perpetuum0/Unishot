@@ -51,23 +51,20 @@ class Screenshooter(QWidget):
         self.toolkitHor = Toolkit(
             self,
             [
-                Toolkit.Button.Cursor,
-                Toolkit.Button.DrawBrush,
-                Toolkit.Button.DrawArrow,
-                Toolkit.Button.DrawLine,
-                Toolkit.Button.DrawSquare,
-                Toolkit.Button.DrawEllipse,
-                Toolkit.Button.DrawText,
-                Toolkit.Button.Color,
-                Toolkit.Button.FlipHor,
-                Toolkit.Button.FlipVer,
-                # [Toolkit.Button.FlipVer, Toolkit.Button.FlipHor]
+                Toolkit.ButtonTypes.Cursor,
+                Toolkit.ButtonTypes.DrawBrush,
+                [Toolkit.ButtonTypes.DrawLine, Toolkit.ButtonTypes.DrawArrow],
+                [Toolkit.ButtonTypes.DrawSquare, Toolkit.ButtonTypes.DrawEllipse],
+                Toolkit.ButtonTypes.DrawText,
+                Toolkit.ButtonTypes.Color,
+                [Toolkit.ButtonTypes.FlipHor, Toolkit.ButtonTypes.FlipVer]
             ],
             Toolkit.Orientation.Horizontal
         )
         self.toolkitVer = Toolkit(
             self,
-            [Toolkit.Button.Close, Toolkit.Button.Copy, Toolkit.Button.Save],
+            [Toolkit.ButtonTypes.Close, Toolkit.ButtonTypes.Copy,
+                Toolkit.ButtonTypes.Save],
             Toolkit.Orientation.Vertical
         )
 
@@ -164,18 +161,18 @@ class Screenshooter(QWidget):
         self.previewLabel.setFixedSize(w, h)
         self.previewLabel.setPixmap(newPreview)
 
-    def toolkitAction(self, buttonType: Toolkit.Button, button: ToolkitButton) -> None:
+    def toolkitAction(self, buttonType: Toolkit.ButtonTypes, button: ToolkitButton) -> None:
         match buttonType:
-            case Toolkit.Button.Save:
+            case Toolkit.ButtonTypes.Save:
                 self.saveScreenshot()
                 self.draw.stop()
-            case Toolkit.Button.Copy:
+            case Toolkit.ButtonTypes.Copy:
                 self.copyScreenshot()
-            case Toolkit.Button.Close:
+            case Toolkit.ButtonTypes.Close:
                 self.hide()
-            case Toolkit.Button.Cursor:
+            case Toolkit.ButtonTypes.Cursor:
                 self.draw.stop()
-            case Toolkit.Button.Color:
+            case Toolkit.ButtonTypes.Color:
                 self.colorMenu.toggle(
                     QPoint(
                         button.x()+button.parent().x()+button.width()/2,
@@ -188,13 +185,13 @@ class Screenshooter(QWidget):
                 self.colorMenu.deactivated.connect(
                     lambda: button.setChecked(False)
                 )
-            case Toolkit.Button.FlipHor:
+            case Toolkit.ButtonTypes.FlipHor:
                 self.postEffects.toggleFlip(x=True)
                 self.updatePostEffects()
-            case Toolkit.Button.FlipVer:
+            case Toolkit.ButtonTypes.FlipVer:
                 self.postEffects.toggleFlip(y=True)
                 self.updatePostEffects()
-            case Toolkit.Button.RotateLeft | Toolkit.Button.RotateRight:
+            case Toolkit.ButtonTypes.RotateLeft | Toolkit.ButtonTypes.RotateRight:
                 raise NotImplementedError
             case DrawTools:
                 self.draw.start(buttonType.value)

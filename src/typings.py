@@ -46,7 +46,7 @@ class DrawTools(Enum):
     Text = "text"
 
 
-class ToolkitButtons(Enum):
+class ToolkitButtonTypes(Enum):
     # Values represent icon names or corresponding DrawTool
     Save = "save"
     Copy = "copy"
