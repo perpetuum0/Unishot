@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QLabel, QGraphicsBlurEffect, QHBoxLayout, QVBoxLayout, QPushButton, QColorDialog
+from PySide6.QtWidgets import QWidget, QLabel, QGraphicsBlurEffect, QHBoxLayout, QVBoxLayout, QPushButton, QColorDialog, QFrame
 from PySide6.QtGui import QPixmap, Qt, QColor, QMouseEvent
 from PySide6.QtCore import QSize, Signal, QPoint, QEvent
 from math import floor
@@ -16,6 +16,17 @@ class ToolkitBackground(QLabel):
         self.setGraphicsEffect(blur)
         self.setStyleSheet(
             "background-color: rgba(255, 255, 255, 235);border:none")
+
+
+class ToolkitSeparator(QFrame):
+    def __init__(self, parent: QWidget, orientation: ToolkitOrientation):
+        super().__init__(parent)
+        parent.adjustSize()
+        if orientation is ToolkitOrientation.Vertical:
+            self.setFixedSize(1, parent.height()*0.75)
+        else:
+            self.setFixedSize(parent.width()*0.75, 1)
+        self.setStyleSheet("border:none; background-color:#b5b5b5")
 
 
 class ToolkitColorMenu(QColorDialog):
@@ -149,9 +160,9 @@ class ToolkitButton(QPushButton):
 
 
 class Toolkit(QWidget):
-    ButtonTypes = ToolkitButtonTypes
+    Button = ToolkitButtonTypes
     Orientation = ToolkitOrientation
-    action = Signal(ButtonTypes, ToolkitButton)
+    action = Signal(Button, ToolkitButton)
     moved = Signal(QPoint)
 
     buttons: list[ToolkitButton]
@@ -159,7 +170,7 @@ class Toolkit(QWidget):
     cursorButton: ToolkitButton
     selectedTool: ToolkitButton
 
-    def __init__(self, parent: QWidget, buttons: list[ButtonTypes | list[ButtonTypes]], orientation: Orientation) -> None:
+    def __init__(self, parent: QWidget, items: list[Button | list[Button]], orientation: Orientation) -> None:
         super().__init__(parent)
         self.selectedTool = None
         self.cursorButton = None
@@ -182,19 +193,25 @@ class Toolkit(QWidget):
             layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        for btnType in buttons:
-            if type(btnType) is list:
+        for itemType in items:
+            if type(itemType) is list:
                 # Initialize group
-                group = ToolkitGroup(parent, self, btnType)
+                group = ToolkitGroup(parent, self, itemType)
                 group.activated.connect(lambda gr: self.hideGroups([gr]))
                 group.buttonClicked.connect(self.buttonClicked)
                 layout.addWidget(group.mainButton)
                 self.groups.append(group)
+            elif itemType is self.Button.Separator:
+                sep = ToolkitSeparator(
+                    self,
+                    self.Orientation.Horizontal if orientation is self.Orientation.Vertical else self.Orientation.Vertical
+                )
+                layout.addWidget(sep, alignment=Qt.AlignmentFlag.AlignCenter)
             else:
                 # Init regular button
-                btn = ToolkitButton(self, btnType, buttonSize)
+                btn = ToolkitButton(self, itemType, buttonSize)
                 btn.clickedT.connect(self.buttonClicked)
-                if btnType is self.ButtonTypes.Cursor:
+                if itemType is self.Button.Cursor:
                     self.cursorButton = btn
                     self.cursorButton.setChecked(True)
                 layout.addWidget(btn)
@@ -207,7 +224,7 @@ class Toolkit(QWidget):
     def buttonClicked(self, event: QMouseEvent, button: ToolkitButton = None) -> None:
         buttonType = button.buttonType()
         # Double clicking tool also stops drawing
-        if (buttonType is self.ButtonTypes.Cursor) or (self.selectedTool == button):
+        if (buttonType is self.Button.Cursor) or (self.selectedTool == button):
             self.clearTool()
         else:
             # If button is tool
@@ -238,7 +255,7 @@ class Toolkit(QWidget):
             self.selectedTool = None
         if self.cursorButton:
             self.cursorButton.setChecked(True)
-            self.action.emit(self.ButtonTypes.Cursor, self.cursorButton)
+            self.action.emit(self.Button.Cursor, self.cursorButton)
 
 
 class ToolkitGroup(QWidget):
@@ -260,8 +277,7 @@ class ToolkitGroup(QWidget):
                 background-color: rgba(255,255,255,245);
             }
             """)
-
-    ButtonTypes = ToolkitButtonTypes
+    Button = ToolkitButtonTypes
     activated = Signal(QWidget)
     buttonClicked = Signal(QMouseEvent, ToolkitButton)
 
@@ -269,28 +285,32 @@ class ToolkitGroup(QWidget):
     mainButton: ToolkitButton
     __active: bool
 
-    def __init__(self, parent: QWidget, parentToolkit: Toolkit, buttons: list[ButtonTypes]):
+    def __init__(self, parent: QWidget, parentToolkit: Toolkit, buttons: list[Button]):
         super().__init__(parent)
         self.toolkit = parentToolkit
         self.__active = False
         self.buttons = []
         self.mainButton = None
+        self.hide()
 
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setDirection(QVBoxLayout.Direction.BottomToTop)
 
         for btnType in reversed(buttons):
-            if btnType is self.ButtonTypes.Cursor:
+            if btnType is self.Button.Cursor:
                 buttons.remove(btnType)
-                print("ToolkitButtonType.Cursor is not supported in groups.")
-                continue
-            btn = ToolkitButton(self, btnType, QSize(30, 30))
-            btn.clickedT.connect(self.buttonClickEvent)
+                print(btnType, "is not supported in groups.")
+            elif btnType is self.Button.Separator:
+                sep = ToolkitSeparator(self, ToolkitOrientation.Horizontal)
+                layout.addWidget(sep, alignment=Qt.AlignmentFlag.AlignCenter)
+            else:
+                btn = ToolkitButton(self, btnType, QSize(30, 30))
+                btn.clickedT.connect(self.buttonClickEvent)
 
-            layout.addWidget(btn)
-            self.buttons.append(btn)
+                layout.addWidget(btn)
+                self.buttons.append(btn)
 
         if len(self.buttons) <= 1:
             raise Exception("Group is empty or consists of only 1 button.")

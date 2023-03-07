@@ -57,6 +57,7 @@ class ToolkitButtonTypes(Enum):
     FlipHor = "flip_hor"
     Color = "color"
     Cursor = "cursor"
+    Separator = "separator"
     DrawBrush = DrawTools.Brush
     DrawLine = DrawTools.Line
     DrawArrow = DrawTools.Arrow
