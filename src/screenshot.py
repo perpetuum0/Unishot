@@ -53,18 +53,20 @@ class Screenshooter(QWidget):
             [
                 Toolkit.ButtonTypes.Cursor,
                 Toolkit.ButtonTypes.DrawBrush,
-                [Toolkit.ButtonTypes.DrawLine, Toolkit.ButtonTypes.DrawArrow],
+                Toolkit.ButtonTypes.DrawLine, Toolkit.ButtonTypes.DrawArrow,
                 [Toolkit.ButtonTypes.DrawSquare, Toolkit.ButtonTypes.DrawEllipse],
                 Toolkit.ButtonTypes.DrawText,
                 Toolkit.ButtonTypes.Color,
-                [Toolkit.ButtonTypes.FlipHor, Toolkit.ButtonTypes.FlipVer]
             ],
             Toolkit.Orientation.Horizontal
         )
         self.toolkitVer = Toolkit(
             self,
-            [Toolkit.ButtonTypes.Close, Toolkit.ButtonTypes.Copy,
-                Toolkit.ButtonTypes.Save],
+            [
+                Toolkit.ButtonTypes.Close, Toolkit.ButtonTypes.Copy,
+                Toolkit.ButtonTypes.Save,
+                [Toolkit.ButtonTypes.FlipHor, Toolkit.ButtonTypes.FlipVer],
+            ],
             Toolkit.Orientation.Vertical
         )
 
@@ -109,6 +111,7 @@ class Screenshooter(QWidget):
 
         self.setGeometry(cRect)
 
+        utils.setScreenOffset(cRect.topLeft())
         self.hideToolkit()
         self.draw.setCanvas(cRect)
         self.draw.stop()
@@ -262,7 +265,9 @@ class Screenshooter(QWidget):
             self.selection.topLeft().x()+ox1,
             self.selection.topLeft().y()+oy1
         )
-        if not utils.isPointOnScreen(geometry.topLeft()):
+        if not utils.isPointOnScreen(
+            geometry.topLeft()
+        ):
             geometry.moveTo(
                 self.selection.bottomRight().x()+ox2,
                 self.selection.bottomRight().y()+oy2

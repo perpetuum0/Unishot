@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QLabel, QGraphicsBlurEffect, QHBoxLayout, QVBoxLayout, QPushButton, QColorDialog
-from PySide6.QtGui import QPixmap, Qt, QColor
-from PySide6.QtCore import QSize, Signal, QPoint
+from PySide6.QtGui import QPixmap, Qt, QColor, QMouseEvent
+from PySide6.QtCore import QSize, Signal, QPoint, QEvent
 from math import floor
 
 from typings import ToolkitButtonTypes, ToolkitOrientation, DrawTools
@@ -73,13 +73,13 @@ class ToolkitColorMenu(QColorDialog):
 
 
 class ToolkitButton(QPushButton):
-    clickedT = Signal(ToolkitButtonTypes, QPushButton)
+    clickedT = Signal(QMouseEvent, QPushButton)
 
-    buttonType: ToolkitButtonTypes
+    __buttonType: ToolkitButtonTypes
 
     def __init__(self, parent: QWidget, buttonType: ToolkitButtonTypes, size: QSize = None) -> None:
         super().__init__(parent)
-        self.buttonType = buttonType
+        self.__buttonType = buttonType
 
         self.setFlat(True)
         if size:
@@ -126,7 +126,14 @@ class ToolkitButton(QPushButton):
 
         self.setToolTip(label)
         self.setIcon(icon)
-        self.clicked.connect(lambda: self.clickedT.emit(buttonType, self))
+        self.installEventFilter(self)
+
+    def eventFilter(self, obj, event: QEvent) -> None:
+        if event.type() is QEvent.Type.MouseButtonRelease:
+            self.click()
+            self.clickedT.emit(event, self)
+            return True
+        return super().eventFilter(obj, event)
 
     def getColorIcon(self, color: QColor) -> QPixmap:
         size = self.size().height()/1.75
@@ -136,6 +143,9 @@ class ToolkitButton(QPushButton):
 
     def setColorIcon(self, color: QColor) -> None:
         self.setIcon(self.getColorIcon(color))
+
+    def buttonType(self) -> ToolkitButtonTypes:
+        return self.__buttonType
 
 
 class Toolkit(QWidget):
@@ -172,29 +182,30 @@ class Toolkit(QWidget):
             layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        for btn in buttons:
-            if type(btn) is list:
+        for btnType in buttons:
+            if type(btnType) is list:
                 # Initialize group
-                group = ToolkitGroup(parent, self, btn)
+                group = ToolkitGroup(parent, self, btnType)
                 group.activated.connect(lambda gr: self.hideGroups([gr]))
                 group.buttonClicked.connect(self.buttonClicked)
                 layout.addWidget(group.mainButton)
                 self.groups.append(group)
             else:
                 # Init regular button
-                btn = ToolkitButton(self, btn, buttonSize)
+                btn = ToolkitButton(self, btnType, buttonSize)
                 btn.clickedT.connect(self.buttonClicked)
-                layout.addWidget(btn)
-                if btn is self.ButtonTypes.Cursor:
+                if btnType is self.ButtonTypes.Cursor:
                     self.cursorButton = btn
                     self.cursorButton.setChecked(True)
+                layout.addWidget(btn)
                 self.buttons.append(btn)
         self.adjustSize()
 
         self.background = ToolkitBackground(self, self.size())
         self.background.lower()
 
-    def buttonClicked(self, buttonType: ButtonTypes, button: ToolkitButton = None) -> None:
+    def buttonClicked(self, event: QMouseEvent, button: ToolkitButton = None) -> None:
+        buttonType = button.buttonType()
         # Double clicking tool also stops drawing
         if (buttonType is self.ButtonTypes.Cursor) or (self.selectedTool == button):
             self.clearTool()
@@ -206,7 +217,6 @@ class Toolkit(QWidget):
                 if self.selectedTool:
                     self.selectedTool.setChecked(False)
                 self.selectedTool = button
-
             self.action.emit(buttonType, button)
 
     def hideEvent(self, ev) -> None:
@@ -228,13 +238,32 @@ class Toolkit(QWidget):
             self.selectedTool = None
         if self.cursorButton:
             self.cursorButton.setChecked(True)
-        self.action.emit(self.ButtonTypes.Cursor, self.cursorButton)
+            self.action.emit(self.ButtonTypes.Cursor, self.cursorButton)
 
 
 class ToolkitGroup(QWidget):
+    class ExpandButton(QPushButton):
+        def __init__(self, parent: QWidget):
+            super().__init__(parent)
+            self.setIcon(QPixmap(":/icons/expand"))
+            self.setIconSize(QSize(10, 10))
+            self.setFixedSize(QSize(13, 13))
+            self.setStyleSheet("""
+            QPushButton {
+                border-radius:5px;
+                background-color: transparent;
+            }
+            QPushButton:hover {
+                background-color: rgba(255,255,255,185);
+            }
+            QPushButton:pressed {
+                background-color: rgba(255,255,255,245);
+            }
+            """)
+
     ButtonTypes = ToolkitButtonTypes
     activated = Signal(QWidget)
-    buttonClicked = Signal(ButtonTypes, ToolkitButton)
+    buttonClicked = Signal(QMouseEvent, ToolkitButton)
 
     buttons: list[ToolkitButtonTypes]
     mainButton: ToolkitButton
@@ -242,58 +271,40 @@ class ToolkitGroup(QWidget):
 
     def __init__(self, parent: QWidget, parentToolkit: Toolkit, buttons: list[ButtonTypes]):
         super().__init__(parent)
-        self.__active = False
-        self.mainButton = None
-        self.buttons = []
-
         self.toolkit = parentToolkit
-
-        self.expandButton = QPushButton(QPixmap(":/icons/expand"), "", self)
-        self.expandButton.setIconSize(QSize(10, 10))
-        self.expandButton.setFixedSize(QSize(13, 13))
-        self.expandButton.setStyleSheet("""
-        QPushButton {
-            border-radius:5px;
-            background-color: transparent;
-        }
-        QPushButton:hover {
-            background-color: rgba(255,255,255,185);
-        }
-        QPushButton:pressed {
-            background-color: rgba(255,255,255,245);
-        }
-        """)
-        self.expandButton.clicked.connect(self.toggle)
+        self.__active = False
+        self.buttons = []
+        self.mainButton = None
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setDirection(QVBoxLayout.Direction.BottomToTop)
 
-        for i, btnType in enumerate(reversed(buttons)):
+        for btnType in reversed(buttons):
+            if btnType is self.ButtonTypes.Cursor:
+                buttons.remove(btnType)
+                print("ToolkitButtonType.Cursor is not supported in groups.")
+                continue
             btn = ToolkitButton(self, btnType, QSize(30, 30))
-
             btn.clickedT.connect(self.buttonClickEvent)
 
-            if btnType is self.ButtonTypes.Cursor:
-                self.cursorButton = btn
-                self.cursorButton.setChecked(True)
-
+            layout.addWidget(btn)
             self.buttons.append(btn)
-            if i == len(buttons)-1:
-                self.mainButton = btn
-                self.alignExpandButton()
-            else:
-                layout.addWidget(btn)
+
+        if len(self.buttons) <= 1:
+            raise Exception("Group is empty or consists of only 1 button.")
+
+        self.mainButton = self.buttons[-1]
+        layout.removeWidget(self.mainButton)
 
         self.adjustSize()
-        self.background = ToolkitBackground(
-            self,
-            QSize(self.width(), self.height())
-        )
+        self.background = ToolkitBackground(self, self.size())
         self.background.lower()
 
-        self.hide()
+        self.expandButton = self.ExpandButton(self)
+        self.expandButton.clicked.connect(self.toggle)
+        self.alignExpandButton()
 
     def setMainButton(self, button: ToolkitButton):
         layout = self.layout()
@@ -310,23 +321,32 @@ class ToolkitGroup(QWidget):
         self.alignExpandButton()
 
     def align(self) -> None:
+        # TODO: align properly on vertical Toolkit
         pos = self.toolkit.mapTo(self.parent(), self.mainButton.pos())
-        self.move(QPoint(pos.x(), self.toolkit.y()-self.height()))
+        self.move(QPoint(
+            pos.x(),
+            self.toolkit.y()-self.height()
+        ))
 
     def alignExpandButton(self):
-        self.expandButton.setParent(self.mainButton)
         expandPos = self.mainButton.rect().topRight()
+        self.expandButton.setParent(self.mainButton)
         self.expandButton.move(
             expandPos.x()-self.expandButton.width()+1,
             expandPos.y()
         )
 
-    def buttonClickEvent(self, buttonType: ButtonTypes, button: ToolkitButton):
-        if self.mainButton != button:
-            if type(buttonType.value) is DrawTools:
-                self.setMainButton(button)
-            self.deactivate()
-        self.buttonClicked.emit(buttonType, button)
+    def buttonClickEvent(self, event: QMouseEvent, button: ToolkitButton):
+        buttonType = button.buttonType()
+        if event.button() is Qt.MouseButton.RightButton and button == self.mainButton:
+            self.toggle()
+            button.toggle()
+        else:
+            if self.mainButton != button:
+                if type(buttonType.value) is DrawTools:
+                    self.setMainButton(button)
+                self.deactivate()
+            self.buttonClicked.emit(event, button)
 
     def active(self) -> bool:
         return self.__active

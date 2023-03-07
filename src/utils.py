@@ -2,10 +2,18 @@ from multipledispatch import dispatch
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtCore import QPoint, QPointF, QLineF, QRect
 
+screenOffset = QPoint(0, 0)
+
+
+def setScreenOffset(offset: QPoint):
+    # This is probably a bad practice...
+    global screenOffset
+    screenOffset = offset
+
 
 def isPointOnScreen(point: QPoint) -> bool:
     for scr in QGuiApplication.screens():
-        if scr.geometry().contains(point):
+        if scr.geometry().contains(QSum(point, screenOffset)):
             return True
     return False
 

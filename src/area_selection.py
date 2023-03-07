@@ -249,10 +249,8 @@ class AreaSelection(QWidget):
                      self.selection.bottomLeft(), self.selection.bottomRight()]
 
         for p in newPoints:
-            p = utils.QSum(p.toPoint(), self.screenOffset)
-            if not utils.isPointOnScreen(p):
+            if not utils.isPointOnScreen(p.toPoint()):
                 self.selection.moveTo(prevPos)
-
         self.selectionChanged()
 
     def resizeSelection(self, alignment: ResizePointAlignment, point: QPoint) -> None:
