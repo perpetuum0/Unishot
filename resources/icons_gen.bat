@@ -1,1 +1,1 @@
-pyside6-rcc "icons.qrc" -o "../src/icons.py"
+pyside6-rcc "icons.qrc" -o "../src/rc_icons.py"

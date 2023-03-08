@@ -1,6 +1,6 @@
 {
   "qtForPython.rcc.options": [
     "-o",
-    "${workspaceFolder}${pathSeparator}src${pathSeparator}${resourceBasenameNoExtension}.py"
+    "${workspaceFolder}${pathSeparator}src${pathSeparator}rc_${resourceBasenameNoExtension}.py"
   ]
 }

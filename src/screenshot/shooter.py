@@ -6,9 +6,9 @@ from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QShortcut, QKeySequence)
 
 from typings import Screenshot
-from area_selection import AreaSelection
-from toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
-from drawing import Draw, PostEffects
+from .area_selection import AreaSelection
+from .toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
+from .drawing import Draw, PostEffects
 import utils
 
 

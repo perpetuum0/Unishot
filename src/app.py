@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PySide6.QtCore import Signal, QObject, QThread
 import global_hotkeys as hotkeys
 
-from screenshot import Screenshooter
+from screenshot.shooter import Screenshooter
 
 
 class HotkeyListener(QObject):
