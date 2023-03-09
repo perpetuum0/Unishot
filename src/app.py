@@ -4,6 +4,7 @@ from PySide6.QtCore import Signal, QObject, QThread
 import global_hotkeys as hotkeys
 
 from screenshot.shooter import Screenshooter
+from options.options import OptionsWindow
 
 
 class HotkeyListener(QObject):
@@ -20,16 +21,18 @@ class Unishot(QApplication):
     def __init__(self) -> None:
         super(Unishot, self).__init__()
         self.setQuitOnLastWindowClosed(False)
+        self.setOrganizationName("Unishot")
         self.aboutToQuit.connect(self.quitEvent)
 
         self.shooter = Screenshooter()
+        self.options = OptionsWindow()
 
         menu = QMenu()
         icon = QIcon(":/icons/tray")
 
-        options = QAction("Options")
-        options.triggered.connect(lambda: print("to be implemented..."))
-        menu.addAction(options)
+        options_ = QAction("Options")
+        options_.triggered.connect(self.options.show)
+        menu.addAction(options_)
 
         quit_ = QAction("Quit")
         quit_.triggered.connect(self.quit)
