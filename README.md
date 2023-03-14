@@ -7,7 +7,7 @@ Versatile screenshot-taking app for Windows 10
 To run Unishot, simply execute `main.py`:
 
 ```
-python main.py
+python src/main.py
 ```
 
 ## Packaging
@@ -21,7 +21,7 @@ pyinstaller main.spec
 Or specify your own options (package `main.py`):
 
 ```
-pyinstaller <options> main.py
+pyinstaller <options> src/main.py
 ```
 
 ## License
