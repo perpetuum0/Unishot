@@ -1,18 +1,21 @@
 from PySide6.QtWidgets import QWidget, QLabel, QApplication, QFileDialog
 from PySide6.QtCore import (
-    Qt, QPoint, QEvent, QRect, QStandardPaths)
+    Qt, QPoint, QEvent, QRect, QStandardPaths, Signal)
 from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen,
                            QShortcut, QKeySequence)
 
+from area_selection import AreaSelection
+from toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
+from drawing import Draw, PostEffects
 from typings import Screenshot
-from .area_selection import AreaSelection
-from .toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
-from .drawing import Draw, PostEffects
 import utils
+import rc_icons
 
 
 class Screenshooter(QWidget):
+    hidden = Signal()
+
     __active: bool
     ignoreFocus: bool
     selection: QRect
@@ -304,3 +307,17 @@ class Screenshooter(QWidget):
 
     def hideEvent(self, ev) -> None:
         self.__active = False
+        self.hidden.emit()
+
+
+def create_instance() -> QApplication:
+    app = QApplication()
+    shooter = Screenshooter()
+    shooter.activate()
+    shooter.hidden.connect(app.quit)
+    return app.exec()
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(create_instance())
