@@ -5,12 +5,11 @@ from PySide6.QtGui import (QGuiApplication, QPixmap,
                            QPainter, QColor, QBrush, QScreen,
                            QShortcut, QKeySequence)
 
-from area_selection import AreaSelection
-from toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
-from drawing import Draw, PostEffects
-from typings import Screenshot
-import utils
-import rc_icons
+from .area_selection import AreaSelection
+from .toolkit import Toolkit, ToolkitButton, ToolkitColorMenu
+from .drawing import Draw, PostEffects
+from .typings import Screenshot
+import screenshot.utils as utils
 
 
 class Screenshooter(QWidget):
@@ -310,14 +309,11 @@ class Screenshooter(QWidget):
         self.hidden.emit()
 
 
-def create_instance() -> QApplication:
-    app = QApplication()
+def create_instance(app: QApplication = None) -> QApplication:
+    if not app:
+        app = QApplication()
     shooter = Screenshooter()
     shooter.activate()
     shooter.hidden.connect(app.quit)
+    app.setActiveWindow(shooter)
     return app.exec()
-
-
-if __name__ == "__main__":
-    import sys
-    sys.exit(create_instance())

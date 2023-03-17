@@ -3,7 +3,7 @@ from PySide6.QtGui import QPixmap, Qt, QColor, QMouseEvent
 from PySide6.QtCore import QSize, Signal, QPoint, QEvent
 from math import floor
 
-from typings import ToolkitButtonTypes, ToolkitOrientation, DrawTools
+from .typings import ToolkitButtonTypes, ToolkitOrientation, DrawTools
 
 
 class ToolkitBackground(QLabel):

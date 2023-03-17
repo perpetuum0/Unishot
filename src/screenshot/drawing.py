@@ -2,8 +2,8 @@ from PySide6.QtWidgets import QWidget, QLabel, QTextEdit, QApplication
 from PySide6.QtCore import Qt, QRect, QLineF, Signal, QPoint
 from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QPainterPath, QPen, QColor, QWheelEvent, QTransform
 
-import utils
-from typings import DrawTools, Drawing
+import screenshot.utils as utils
+from .typings import DrawTools, Drawing
 
 
 class PostEffects():

@@ -1,7 +1,7 @@
-from PySide6.QtWidgets import QWidget, QTabWidget, QBoxLayout, QCheckBox
+from PySide6.QtWidgets import QWidget, QTabWidget, QBoxLayout, QCheckBox, QApplication
 from PySide6.QtCore import QSettings
 
-from . import startup
+import options.startup as startup
 
 
 class OptionsWindow(QTabWidget):
@@ -27,3 +27,13 @@ class OptionsWindow(QTabWidget):
     def setStartup(self, state: int):
         state = True if state == 2 else False
         startup.setStartup(state)
+
+
+def create_instance(app: QApplication = None) -> QApplication:
+    if not app:
+        app = QApplication()
+    options = OptionsWindow()
+    options.show()
+    # options.hidden.connect(app.quit)
+    # app.setActiveWindow(options)
+    return app.exec()

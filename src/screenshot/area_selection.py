@@ -2,9 +2,9 @@ from PySide6.QtWidgets import QWidget, QLabel, QToolTip, QApplication
 from PySide6.QtGui import QPixmap, QMouseEvent, Qt, QCursor
 from PySide6.QtCore import QRect, QPoint, QPointF, Signal, QLineF, QPointF, QRectF
 
-import utils
-from drawing import PostEffects
-from typings import ResizePointAlignment
+import screenshot.utils as utils
+from .drawing import PostEffects
+from .typings import ResizePointAlignment
 
 
 class SelectionPreview(QLabel):
