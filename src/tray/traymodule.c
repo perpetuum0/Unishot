@@ -8,6 +8,7 @@
 
 static PyObject* py_options_cb = NULL;
 static PyObject* py_screenshot_cb = NULL;
+static PyObject* py_quit_cb = NULL;
 PyObject *result;
 
 static void options_cb(struct tray_menu *item){
@@ -16,10 +17,10 @@ static void options_cb(struct tray_menu *item){
 }
 
 
- 
 static void quit_cb(struct tray_menu *item) {
   (void)item;
   tray_exit();
+  PyObject_CallObject(py_quit_cb,NULL);
 }    
 
 static void tray_cb() {
@@ -38,38 +39,42 @@ static struct tray tray = {
 
 static PyObject* create_tray(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    // PyObject *temp;
-    PyObject* py_scr_cb;
-    PyObject* py_opt_cb;
-    static char* keywords[] = {"screenshot_callback","options_callback", NULL};
+    PyObject* tmp_scr_cb;
+    PyObject* tmp_opt_cb;
+    PyObject* tmp_quit_cb;
+    static char* keywords[] = {"screenshot_callback","options_callback","quit_callback", NULL};
     
 
-    if(PyArg_ParseTupleAndKeywords(args, kwargs, "OO", keywords, &py_scr_cb, &py_opt_cb))
+    if(PyArg_ParseTupleAndKeywords(args, kwargs, "OOO", keywords, &tmp_scr_cb, &tmp_opt_cb, &tmp_quit_cb))
     {
-        if (!PyCallable_Check(py_scr_cb) || !PyCallable_Check(py_opt_cb)) {
+        if (!PyCallable_Check(tmp_scr_cb) ||
+            !PyCallable_Check(tmp_opt_cb) ||
+            !PyCallable_Check(tmp_quit_cb)) 
+        {
             PyErr_SetString(PyExc_TypeError, "parameter must be callable");
             Py_RETURN_NONE;
         }
 
-        Py_XINCREF(py_scr_cb);         /* Add a reference to new callback */
-        Py_XDECREF(py_screenshot_cb);  /* Dispose of previous callback */
-        py_screenshot_cb = py_scr_cb;       /* Remember new callback */
+        Py_XINCREF(tmp_scr_cb);
+        Py_XDECREF(py_screenshot_cb);
+        py_screenshot_cb = tmp_scr_cb;
         
 
-        Py_XINCREF(py_opt_cb);         /* Add a reference to new callback */
-        Py_XDECREF(py_options_cb);  /* Dispose of previous callback */
-        py_options_cb = py_opt_cb;       /* Remember new callback */
-        /* Boilerplate to return "None" */
-        
+        Py_XINCREF(tmp_opt_cb);
+        Py_XDECREF(py_options_cb);
+        py_options_cb = tmp_opt_cb;
+
+        Py_XINCREF(tmp_quit_cb);
+        Py_XDECREF(py_quit_cb);
+        py_quit_cb = tmp_quit_cb;
     } 
 
     if (tray_init(&tray) < 0) {
-        printf("failed to create tray\n");
+        PyErr_SetString(PyExc_RuntimeError, "failed to create tray");
         Py_RETURN_NONE;
     }
-    while (tray_loop(1) != -1) { 
-        printf("iteration\n");
-    }
+
+    while (tray_loop(1) != -1);
     Py_RETURN_NONE;
 }
 
@@ -81,10 +86,9 @@ static PyMethodDef TrayMethods[] = {
 
 static struct PyModuleDef traymodule = {
     PyModuleDef_HEAD_INIT,
-    "tray",   /* name of module */
-    NULL, /* module documentation, may be NULL */
-    -1,       /* size of per-interpreter state of the module,
-                 or -1 if the module keeps state in global variables. */
+    "tray",
+    NULL,
+    -1,
     TrayMethods
 };
 

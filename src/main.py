@@ -1,13 +1,12 @@
-from multiprocessing import Process, Queue
 import sys
 
 
 def run_screenshot(queue):
-    import screenshot
-    import screenshot.rc_icons
     from PySide6.QtWidgets import QApplication
     app = QApplication()
     queue.get()  # Wait for queue call...
+    import screenshot
+    import screenshot.rc_icons
     sys.exit(screenshot.create_instance(app))
 
 
@@ -17,24 +16,35 @@ def run_options():
 
 
 def init_screenshot(queue):
-    process = Process(target=run_screenshot, args=[queue])
+    process = Process(name="Unishot", target=run_screenshot,
+                      args=[queue], daemon=True)
     process.start()
     return process
 
 
 if __name__ == "__main__":
+    from multiprocessing import Process, Queue
     import tray
-    queue = Queue()
-    proc = init_screenshot(queue)
+    scr_queue = Queue()
+    scr_proc = init_screenshot(scr_queue)
+    opt_proc = None
 
     def screenshot():
-        global proc
-        queue.put(True)
-        proc.join()
-        proc = init_screenshot(queue)
+        global scr_proc
+        scr_queue.put(True)
+        scr_proc.join()
+        scr_proc = init_screenshot(scr_queue)
 
     def options():
-        process = Process(target=run_options)
-        process.start()
+        global opt_proc
+        opt_proc = Process(target=run_options)
+        opt_proc.start()
 
-    tray.create_tray(screenshot, options)
+    def quit_():
+        if opt_proc:
+            opt_proc.terminate()
+        if scr_proc:
+            scr_proc.terminate()
+        sys.exit(0)
+
+    tray.create_tray(screenshot, options, quit_)
