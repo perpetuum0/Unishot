@@ -75,6 +75,8 @@ class Screenshooter(QWidget):
         self.toolkitHor.action.connect(self.toolkitAction)
         self.toolkitVer.action.connect(self.toolkitAction)
 
+        self.cancelShortcut = QShortcut(QKeySequence("Escape"), self)
+        self.cancelShortcut.activated.connect(self.cancel)
         self.saveShortcut = QShortcut(QKeySequence.StandardKey.Save, self)
         self.saveShortcut.activated.connect(self.saveScreenshot)
         self.clipboardShortcut = QShortcut(QKeySequence.StandardKey.Copy, self)
@@ -285,19 +287,14 @@ class Screenshooter(QWidget):
             event.ignore()
         return super().event(event)
 
-    def keyPressEvent(self, event) -> None:
-        # Hide on hitting ESC
-        if event.key() == Qt.Key.Key_Escape:
-            if self.colorMenu.active():
-                self.colorMenu.deactivate()
-            elif self.draw.active():
-                self.toolkitHor.clearTool()
-                self.toolkitVer.clearTool()
-            else:
-                self.hide()
-            event.accept()
+    def cancel(self):
+        if self.colorMenu.active():
+            self.colorMenu.deactivate()
+        elif self.draw.active():
+            self.toolkitHor.clearTool()
+            self.toolkitVer.clearTool()
         else:
-            event.ignore()
+            self.hide()
 
     def active(self) -> bool:
         return self.__active
