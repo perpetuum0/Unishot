@@ -64,7 +64,6 @@ static LRESULT CALLBACK _tray_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
         }
         return 0;
     }
-
     break;
   case WM_COMMAND:
     if (wparam >= ID_TRAY_FIRST) {
@@ -118,6 +117,11 @@ static HMENU _tray_menu(struct tray_menu *m, UINT *id) {
 
 static int tray_init(struct tray *tray) {
   memset(&wc, 0, sizeof(wc));
+  RegisterHotKey(
+          NULL,
+          1,
+          MOD_NOREPEAT,
+          VK_SNAPSHOT);
   _tray = tray;
   wc.cbSize = sizeof(WNDCLASSEX);
   wc.lpfnWndProc = _tray_wnd_proc;
@@ -154,7 +158,13 @@ static int tray_loop(int blocking) {
   }
   if (msg.message == WM_QUIT) {
     return -1;
+  } 
+  else if (msg.message == WM_HOTKEY) {
+    if (_tray != NULL && _tray->cb != NULL) {
+      _tray->cb();
+    }
   }
+  
   TranslateMessage(&msg);
   DispatchMessage(&msg);
   return 0;

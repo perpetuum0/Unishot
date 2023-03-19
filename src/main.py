@@ -5,9 +5,9 @@ def run_screenshot(queue):
     from PySide6.QtWidgets import QApplication
     app = QApplication()
     queue.get()  # Wait for queue call...
-    import screenshot
     import screenshot.rc_icons
-    sys.exit(screenshot.create_instance(app))
+    from screenshot import create_instance
+    sys.exit(create_instance(app))
 
 
 def run_options():
@@ -27,12 +27,11 @@ if __name__ == "__main__":
     import tray
     scr_queue = Queue()
     scr_proc = init_screenshot(scr_queue)
-    opt_proc = None
+    opt_proc = Process()
 
     def screenshot():
         global scr_proc
         scr_queue.put(True)
-        scr_proc.join()
         scr_proc = init_screenshot(scr_queue)
 
     def options():

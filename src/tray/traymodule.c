@@ -26,7 +26,7 @@ static void quit_cb(struct tray_menu *item) {
 static void tray_cb() {
     PyObject_CallObject(py_screenshot_cb, NULL);
 }
-   
+
 static struct tray tray = {
     .icon = TRAY_ICON1,
     .menu =
