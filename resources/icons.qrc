@@ -2,7 +2,6 @@
 <qresource prefix="/icons">
     <file alias="close">images/close.svg</file>
     <file alias="copy">images/copy.png</file>
-    <file alias="tray">images/tray.png</file>
     <file alias="save">images/save.png</file>
     <file alias="cursor">images/cursor.png</file>
     <file alias="brush">images/brush.svg</file>
@@ -13,6 +12,6 @@
     <file alias="text">images/text.svg</file>
     <file alias="flip_hor">images/flip_hor.png</file>
     <file alias="flip_ver">images/flip_ver.png</file>
-    <file alias="expand">images/expand.png</file>
+    <file alias="expand">images/expand.png</file> 
 </qresource>
 </RCC>

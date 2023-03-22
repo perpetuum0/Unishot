@@ -5,7 +5,7 @@ def run_screenshot(queue):
     from PySide6.QtWidgets import QApplication
     app = QApplication()
     queue.get()  # Wait for queue call...
-    import screenshot.rc_icons
+    import rc_icons
     from screenshot import create_instance
     sys.exit(create_instance(app))
 
